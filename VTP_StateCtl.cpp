@@ -167,9 +167,10 @@ void FTR_CTR3SpeedCtl::VTP_InitParameter()
     this->VTPInfo.MaxSpeed                              = this->SettingParameterFromJson.maxSpeed;
     this->VTPInfo.CtlByte                               = this->SettingParameterFromJson.VTPCtlByte.CtlByte;
 
-    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.TOFOAOn_Off = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off;//this->TOF_OAFlag;//false;//true;
-    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.USOAOn_Off  = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off;//this->US_OAFlag;//true;
-    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.UturnDir    = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir;//this->UturnDirFlag;
+    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.TOFOAOn_Off     = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off;//this->TOF_OAFlag;//false;//true;
+    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.USOAOn_Off      = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off;//this->US_OAFlag;//true;
+    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.UturnDir        = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir;//this->UturnDirFlag;
+    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.OASetOnStation  = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation;
 
     this->CartModeEnterParameter.LeftDiam               = this->SettingParameterFromJson.LeftDiam;//this->LeftWheelDiameter;//(168.8850);
     this->CartModeEnterParameter.RightDiam              = this->SettingParameterFromJson.RightDiam;//this->RightWheelDiameter;//(168.9614);

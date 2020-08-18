@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_FTR_CTR3SpeedCtl_t {
-    QByteArrayData data[41];
-    char stringdata0[602];
+    QByteArrayData data[44];
+    char stringdata0[669];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -41,51 +41,56 @@ QT_MOC_LITERAL(5, 75, 7), // "voltage"
 QT_MOC_LITERAL(6, 83, 13), // "Time2LoopSlot"
 QT_MOC_LITERAL(7, 97, 18), // "Timer2SendDataSlot"
 QT_MOC_LITERAL(8, 116, 18), // "PauseToGoTimerSlot"
-QT_MOC_LITERAL(9, 135, 12), // "ReadUARTSlot"
-QT_MOC_LITERAL(10, 148, 18), // "UpdateVelocitySlot"
-QT_MOC_LITERAL(11, 167, 13), // "MotorCtrlInfo"
-QT_MOC_LITERAL(12, 181, 17), // "CartStateSyncSlot"
-QT_MOC_LITERAL(13, 199, 11), // "CartState_e"
-QT_MOC_LITERAL(14, 211, 9), // "CartState"
-QT_MOC_LITERAL(15, 221, 17), // "WriteMainPipeSlot"
-QT_MOC_LITERAL(16, 239, 9), // "cartState"
-QT_MOC_LITERAL(17, 249, 23), // "ReadVTPInfoFromPipeSlot"
-QT_MOC_LITERAL(18, 273, 23), // "ReadVTKInfoFromPipeSlot"
-QT_MOC_LITERAL(19, 297, 15), // "fileChangedSlot"
-QT_MOC_LITERAL(20, 313, 4), // "path"
-QT_MOC_LITERAL(21, 318, 17), // "UpdateVTKInfoSlot"
-QT_MOC_LITERAL(22, 336, 9), // "VTKInfo_t"
-QT_MOC_LITERAL(23, 346, 7), // "VTKInfo"
-QT_MOC_LITERAL(24, 354, 17), // "UpdateVTPInfoSlot"
-QT_MOC_LITERAL(25, 372, 9), // "VTPInfo_t"
-QT_MOC_LITERAL(26, 382, 7), // "VTPInfo"
-QT_MOC_LITERAL(27, 390, 19), // "PNGButtonToggleSlot"
-QT_MOC_LITERAL(28, 410, 15), // "CalcArcInfoSlot"
-QT_MOC_LITERAL(29, 426, 9), // "ArcInfo_t"
-QT_MOC_LITERAL(30, 436, 11), // "PointAxis_t"
-QT_MOC_LITERAL(31, 448, 2), // "p1"
-QT_MOC_LITERAL(32, 451, 2), // "p2"
-QT_MOC_LITERAL(33, 454, 2), // "p3"
-QT_MOC_LITERAL(34, 457, 23), // "tcpServerConnectionSlot"
-QT_MOC_LITERAL(35, 481, 17), // "tcpSocketReadSlot"
-QT_MOC_LITERAL(36, 499, 24), // "tcpSocketSendMessageSlot"
-QT_MOC_LITERAL(37, 524, 7), // "message"
-QT_MOC_LITERAL(38, 532, 23), // "tcpSocketDisconnectSlot"
-QT_MOC_LITERAL(39, 556, 28), // "lowPowerToShutDownSystemSlot"
-QT_MOC_LITERAL(40, 585, 16) // "calcCapacitySlot"
+QT_MOC_LITERAL(9, 135, 18), // "RecoverOATimerSlot"
+QT_MOC_LITERAL(10, 154, 12), // "ReadUARTSlot"
+QT_MOC_LITERAL(11, 167, 18), // "UpdateVelocitySlot"
+QT_MOC_LITERAL(12, 186, 13), // "MotorCtrlInfo"
+QT_MOC_LITERAL(13, 200, 17), // "CartStateSyncSlot"
+QT_MOC_LITERAL(14, 218, 11), // "CartState_e"
+QT_MOC_LITERAL(15, 230, 9), // "CartState"
+QT_MOC_LITERAL(16, 240, 17), // "WriteMainPipeSlot"
+QT_MOC_LITERAL(17, 258, 9), // "cartState"
+QT_MOC_LITERAL(18, 268, 23), // "ReadVTPInfoFromPipeSlot"
+QT_MOC_LITERAL(19, 292, 23), // "ReadVTKInfoFromPipeSlot"
+QT_MOC_LITERAL(20, 316, 15), // "fileChangedSlot"
+QT_MOC_LITERAL(21, 332, 4), // "path"
+QT_MOC_LITERAL(22, 337, 17), // "UpdateVTKInfoSlot"
+QT_MOC_LITERAL(23, 355, 9), // "VTKInfo_t"
+QT_MOC_LITERAL(24, 365, 7), // "VTKInfo"
+QT_MOC_LITERAL(25, 373, 17), // "UpdateVTPInfoSlot"
+QT_MOC_LITERAL(26, 391, 9), // "VTPInfo_t"
+QT_MOC_LITERAL(27, 401, 7), // "VTPInfo"
+QT_MOC_LITERAL(28, 409, 19), // "PNGButtonToggleSlot"
+QT_MOC_LITERAL(29, 429, 19), // "SettingOAToggleSlot"
+QT_MOC_LITERAL(30, 449, 27), // "SettingOAGlobalBaseJsonSlot"
+QT_MOC_LITERAL(31, 477, 15), // "CalcArcInfoSlot"
+QT_MOC_LITERAL(32, 493, 9), // "ArcInfo_t"
+QT_MOC_LITERAL(33, 503, 11), // "PointAxis_t"
+QT_MOC_LITERAL(34, 515, 2), // "p1"
+QT_MOC_LITERAL(35, 518, 2), // "p2"
+QT_MOC_LITERAL(36, 521, 2), // "p3"
+QT_MOC_LITERAL(37, 524, 23), // "tcpServerConnectionSlot"
+QT_MOC_LITERAL(38, 548, 17), // "tcpSocketReadSlot"
+QT_MOC_LITERAL(39, 566, 24), // "tcpSocketSendMessageSlot"
+QT_MOC_LITERAL(40, 591, 7), // "message"
+QT_MOC_LITERAL(41, 599, 23), // "tcpSocketDisconnectSlot"
+QT_MOC_LITERAL(42, 623, 28), // "lowPowerToShutDownSystemSlot"
+QT_MOC_LITERAL(43, 652, 16) // "calcCapacitySlot"
 
     },
     "FTR_CTR3SpeedCtl\0ReadVTPInfoSignal\0\0"
     "ReadVTKInfoSignal\0toCalcCapacitySignal\0"
     "voltage\0Time2LoopSlot\0Timer2SendDataSlot\0"
-    "PauseToGoTimerSlot\0ReadUARTSlot\0"
-    "UpdateVelocitySlot\0MotorCtrlInfo\0"
-    "CartStateSyncSlot\0CartState_e\0CartState\0"
-    "WriteMainPipeSlot\0cartState\0"
-    "ReadVTPInfoFromPipeSlot\0ReadVTKInfoFromPipeSlot\0"
-    "fileChangedSlot\0path\0UpdateVTKInfoSlot\0"
-    "VTKInfo_t\0VTKInfo\0UpdateVTPInfoSlot\0"
-    "VTPInfo_t\0VTPInfo\0PNGButtonToggleSlot\0"
+    "PauseToGoTimerSlot\0RecoverOATimerSlot\0"
+    "ReadUARTSlot\0UpdateVelocitySlot\0"
+    "MotorCtrlInfo\0CartStateSyncSlot\0"
+    "CartState_e\0CartState\0WriteMainPipeSlot\0"
+    "cartState\0ReadVTPInfoFromPipeSlot\0"
+    "ReadVTKInfoFromPipeSlot\0fileChangedSlot\0"
+    "path\0UpdateVTKInfoSlot\0VTKInfo_t\0"
+    "VTKInfo\0UpdateVTPInfoSlot\0VTPInfo_t\0"
+    "VTPInfo\0PNGButtonToggleSlot\0"
+    "SettingOAToggleSlot\0SettingOAGlobalBaseJsonSlot\0"
     "CalcArcInfoSlot\0ArcInfo_t\0PointAxis_t\0"
     "p1\0p2\0p3\0tcpServerConnectionSlot\0"
     "tcpSocketReadSlot\0tcpSocketSendMessageSlot\0"
@@ -101,7 +106,7 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      23,   14, // methods
+      26,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -109,31 +114,34 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
        3,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    0,  129,    2, 0x06 /* Public */,
-       3,    0,  130,    2, 0x06 /* Public */,
-       4,    1,  131,    2, 0x06 /* Public */,
+       1,    0,  144,    2, 0x06 /* Public */,
+       3,    0,  145,    2, 0x06 /* Public */,
+       4,    1,  146,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       6,    0,  134,    2, 0x0a /* Public */,
-       7,    0,  135,    2, 0x0a /* Public */,
-       8,    0,  136,    2, 0x0a /* Public */,
-       9,    0,  137,    2, 0x0a /* Public */,
-      10,    1,  138,    2, 0x0a /* Public */,
-      12,    1,  141,    2, 0x0a /* Public */,
-      15,    1,  144,    2, 0x0a /* Public */,
-      17,    0,  147,    2, 0x0a /* Public */,
-      18,    0,  148,    2, 0x0a /* Public */,
-      19,    1,  149,    2, 0x0a /* Public */,
-      21,    1,  152,    2, 0x0a /* Public */,
-      24,    1,  155,    2, 0x0a /* Public */,
-      27,    0,  158,    2, 0x0a /* Public */,
-      28,    3,  159,    2, 0x0a /* Public */,
-      34,    0,  166,    2, 0x0a /* Public */,
-      35,    0,  167,    2, 0x0a /* Public */,
-      36,    1,  168,    2, 0x0a /* Public */,
-      38,    0,  171,    2, 0x0a /* Public */,
-      39,    0,  172,    2, 0x0a /* Public */,
-      40,    1,  173,    2, 0x0a /* Public */,
+       6,    0,  149,    2, 0x0a /* Public */,
+       7,    0,  150,    2, 0x0a /* Public */,
+       8,    0,  151,    2, 0x0a /* Public */,
+       9,    0,  152,    2, 0x0a /* Public */,
+      10,    0,  153,    2, 0x0a /* Public */,
+      11,    1,  154,    2, 0x0a /* Public */,
+      13,    1,  157,    2, 0x0a /* Public */,
+      16,    1,  160,    2, 0x0a /* Public */,
+      18,    0,  163,    2, 0x0a /* Public */,
+      19,    0,  164,    2, 0x0a /* Public */,
+      20,    1,  165,    2, 0x0a /* Public */,
+      22,    1,  168,    2, 0x0a /* Public */,
+      25,    1,  171,    2, 0x0a /* Public */,
+      28,    0,  174,    2, 0x0a /* Public */,
+      29,    1,  175,    2, 0x0a /* Public */,
+      30,    0,  178,    2, 0x0a /* Public */,
+      31,    3,  179,    2, 0x0a /* Public */,
+      37,    0,  186,    2, 0x0a /* Public */,
+      38,    0,  187,    2, 0x0a /* Public */,
+      39,    1,  188,    2, 0x0a /* Public */,
+      41,    0,  191,    2, 0x0a /* Public */,
+      42,    0,  192,    2, 0x0a /* Public */,
+      43,    1,  193,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void,
@@ -145,19 +153,22 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 11,    2,
-    QMetaType::Void, 0x80000000 | 13,   14,
-    QMetaType::Void, 0x80000000 | 13,   16,
+    QMetaType::Void,
+    QMetaType::Void, 0x80000000 | 12,    2,
+    QMetaType::Void, 0x80000000 | 14,   15,
+    QMetaType::Void, 0x80000000 | 14,   17,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::QString,   20,
-    QMetaType::Void, 0x80000000 | 22,   23,
-    QMetaType::Void, 0x80000000 | 25,   26,
+    QMetaType::Void, QMetaType::QString,   21,
+    QMetaType::Void, 0x80000000 | 23,   24,
+    QMetaType::Void, 0x80000000 | 26,   27,
     QMetaType::Void,
-    0x80000000 | 29, 0x80000000 | 30, 0x80000000 | 30, 0x80000000 | 30,   31,   32,   33,
+    QMetaType::Void, 0x80000000 | 14,   17,
+    QMetaType::Bool,
+    0x80000000 | 32, 0x80000000 | 33, 0x80000000 | 33, 0x80000000 | 33,   34,   35,   36,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::QString,   37,
+    QMetaType::Void, QMetaType::QString,   40,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, QMetaType::Double,    5,
@@ -177,24 +188,28 @@ void FTR_CTR3SpeedCtl::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 3: _t->Time2LoopSlot(); break;
         case 4: _t->Timer2SendDataSlot(); break;
         case 5: _t->PauseToGoTimerSlot(); break;
-        case 6: _t->ReadUARTSlot(); break;
-        case 7: _t->UpdateVelocitySlot((*reinterpret_cast< MotorCtrlInfo(*)>(_a[1]))); break;
-        case 8: _t->CartStateSyncSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
-        case 9: _t->WriteMainPipeSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
-        case 10: _t->ReadVTPInfoFromPipeSlot(); break;
-        case 11: _t->ReadVTKInfoFromPipeSlot(); break;
-        case 12: _t->fileChangedSlot((*reinterpret_cast< const QString(*)>(_a[1]))); break;
-        case 13: _t->UpdateVTKInfoSlot((*reinterpret_cast< VTKInfo_t(*)>(_a[1]))); break;
-        case 14: _t->UpdateVTPInfoSlot((*reinterpret_cast< VTPInfo_t(*)>(_a[1]))); break;
-        case 15: _t->PNGButtonToggleSlot(); break;
-        case 16: { ArcInfo_t _r = _t->CalcArcInfoSlot((*reinterpret_cast< PointAxis_t(*)>(_a[1])),(*reinterpret_cast< PointAxis_t(*)>(_a[2])),(*reinterpret_cast< PointAxis_t(*)>(_a[3])));
+        case 6: _t->RecoverOATimerSlot(); break;
+        case 7: _t->ReadUARTSlot(); break;
+        case 8: _t->UpdateVelocitySlot((*reinterpret_cast< MotorCtrlInfo(*)>(_a[1]))); break;
+        case 9: _t->CartStateSyncSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
+        case 10: _t->WriteMainPipeSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
+        case 11: _t->ReadVTPInfoFromPipeSlot(); break;
+        case 12: _t->ReadVTKInfoFromPipeSlot(); break;
+        case 13: _t->fileChangedSlot((*reinterpret_cast< const QString(*)>(_a[1]))); break;
+        case 14: _t->UpdateVTKInfoSlot((*reinterpret_cast< VTKInfo_t(*)>(_a[1]))); break;
+        case 15: _t->UpdateVTPInfoSlot((*reinterpret_cast< VTPInfo_t(*)>(_a[1]))); break;
+        case 16: _t->PNGButtonToggleSlot(); break;
+        case 17: _t->SettingOAToggleSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
+        case 18: { bool _r = _t->SettingOAGlobalBaseJsonSlot();
+            if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
+        case 19: { ArcInfo_t _r = _t->CalcArcInfoSlot((*reinterpret_cast< PointAxis_t(*)>(_a[1])),(*reinterpret_cast< PointAxis_t(*)>(_a[2])),(*reinterpret_cast< PointAxis_t(*)>(_a[3])));
             if (_a[0]) *reinterpret_cast< ArcInfo_t*>(_a[0]) = std::move(_r); }  break;
-        case 17: _t->tcpServerConnectionSlot(); break;
-        case 18: _t->tcpSocketReadSlot(); break;
-        case 19: _t->tcpSocketSendMessageSlot((*reinterpret_cast< QString(*)>(_a[1]))); break;
-        case 20: _t->tcpSocketDisconnectSlot(); break;
-        case 21: _t->lowPowerToShutDownSystemSlot(); break;
-        case 22: _t->calcCapacitySlot((*reinterpret_cast< double(*)>(_a[1]))); break;
+        case 20: _t->tcpServerConnectionSlot(); break;
+        case 21: _t->tcpSocketReadSlot(); break;
+        case 22: _t->tcpSocketSendMessageSlot((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 23: _t->tcpSocketDisconnectSlot(); break;
+        case 24: _t->lowPowerToShutDownSystemSlot(); break;
+        case 25: _t->calcCapacitySlot((*reinterpret_cast< double(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -252,13 +267,13 @@ int FTR_CTR3SpeedCtl::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 23)
+        if (_id < 26)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 23;
+        _id -= 26;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 23)
+        if (_id < 26)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 23;
+        _id -= 26;
     }
     return _id;
 }

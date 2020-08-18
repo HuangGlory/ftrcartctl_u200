@@ -1,4 +1,6 @@
 #include "cartstatesetting.h"
+#include <iostream>
+using namespace std;
 
 CartStateSetting *SetCartState = new CartStateSetting;
 
@@ -260,11 +262,17 @@ void CartStateSetting::LoopTimerSlot()
             }
             else if(this->WhichKey.contains("VTK_KEY"))
             {
-                //qDebug()<<"RC long press";
+                if(this->PreCartState == STATE_VTK)
+                {
+                    emit this->SettingOAToggleSignal(STATE_VTK);
+                }
             }
             else//"VTP_KEY
             {
-                //qDebug()<<"VTP long press";
+                if(this->PreCartState == STATE_VTP)
+                {
+                    emit this->SettingOAToggleSignal(STATE_VTP);
+                }
             }
             this->WhichKey.clear();
         }
@@ -281,12 +289,10 @@ void CartStateSetting::LoopTimerSlot()
                 else if(this->WhichKey.contains("VTK_KEY"))
                 {
                     this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTK):(STATE_SB);
-                    //qDebug()<<"CartState VTK"<<STATE_VTK;
                 }
                 else//"VTP_KEY
                 {
                     this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTP):(STATE_SB);
-                    //qDebug()<<"CartState VTP"<<STATE_VTP;
                 }
                 this->WhichKey.clear();
             }

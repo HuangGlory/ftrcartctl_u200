@@ -130,6 +130,7 @@ typedef enum
 #define SLOW_BLINK_TIME (1500)
 #define FAST_BLINK_TIME (300)
 
+//#define LONG_LONG_PRESS_TIME (5000)
 #define LONG_PRESS_TIME (1000)
 #define SHORT_PRESS_TIME (200)
 
@@ -157,6 +158,8 @@ signals:
     void KeyISRSignl(void);
     void BroadcastCartStateSignal(CartState_e);
     void PNGButtonToggleSignal();
+    void SettingOAToggleSignal(CartState_e);
+
 public slots:
     void LoopTimerSlot(void);
     void LEDBlinkSpeedCtlTimerSlot(void);

@@ -44,9 +44,16 @@ using namespace std;
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
 
 #if(PLATFORM == PLATFORM_U250)
-#define VERSION                         tr("ftrCartCtl Ver:0.0.2.19.U200@20200815\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.3.00.U200@20200817\n\n")
 /***********************
  * log:
+ * Ver:0.0.3.00.U200@20200817
+ * 1.add settting OA quickly in every mode
+ * 2.增加有OA用P&G灯提示，没OA时灯灭，有OA时灯1S闪一次
+ * 3.增加tx_log into settings.json
+ * 4.增加在SB下，可以全局设置OA开or 关
+ * 5.增加在站点上可以设置oa开关
+ *
  * Ver:0.0.2.19.U200@20200815
  * 1.fix VTP speed up bug
  *
@@ -247,6 +254,7 @@ public slots:
     void Time2LoopSlot(void);
     void Timer2SendDataSlot(void);
     void PauseToGoTimerSlot(void);
+    void RecoverOATimerSlot(void);
 
     void ReadUARTSlot(void);
     void UpdateVelocitySlot(MotorCtrlInfo);
@@ -265,6 +273,10 @@ public slots:
 #endif
     //pause and go button slot
     void PNGButtonToggleSlot();
+
+    //quickly setting OA slot
+    void SettingOAToggleSlot(CartState_e cartState);
+    bool SettingOAGlobalBaseJsonSlot(void);
 
     ArcInfo_t CalcArcInfoSlot(PointAxis_t p1,PointAxis_t p2,PointAxis_t p3);
 
@@ -326,6 +338,7 @@ private:
     QTimer          *Time2SendData;
     QTimer          *Time2Loop;
     QTimer          *PauseToGoTimer;
+    QTimer          *RecoverTimer;
 
 #if(BLUETOOTH_SERIAL_USED)
     QTimer          *Time4RCTimeout;
@@ -343,6 +356,7 @@ private:
     bool            GetVersionOfEBoxFlag;
     bool            Wait4CameraReadyIndecateFlag;
     bool            IntoConfigureModeFlag;
+    bool            InSetOAGlobalFlag;
     bool            SocketReadyFlag;
     bool            itNeedSendInfoToPhoneFlag;
     bool            EboxReadyFlag;
@@ -350,6 +364,9 @@ private:
     bool            LampEnInVTKFlag;
     bool            LampEnInVTPFlag;
 
+    bool            GlobaOAStateFlag;
+
+    quint8          RecoverOATimeout;
     int16_t         LeftSettingSpeed;
     int16_t         RightSettingSpeed;
     double          LeftODOFactor;

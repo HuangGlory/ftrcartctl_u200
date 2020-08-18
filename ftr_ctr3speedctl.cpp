@@ -23,6 +23,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->batCapacityInfo.lessThan10Flag = false;
     this->batCapacityInfo.lessThen20Flag = false;
 
+    this->InSetOAGlobalFlag             = false;
     this->SocketReadyFlag               = false;
     this->EboxReadyFlag                 = false;
     this->Wait4CameraReadyIndecateFlag  = false;
@@ -46,6 +47,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->Time2Loop                 = new QTimer;
     this->Time2SendData             = new QTimer;
     this->PauseToGoTimer            = new QTimer;
+    this->RecoverTimer              = new QTimer;
 
 #if(BLUETOOTH_SERIAL_USED)
     this->Time4RCTimeout            = new QTimer;
@@ -172,6 +174,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->Time2Loop,SIGNAL(timeout()),this,SLOT(Time2LoopSlot()));
     connect(this->Time2SendData,SIGNAL(timeout()),this,SLOT(Timer2SendDataSlot()));
     connect(this->PauseToGoTimer,SIGNAL(timeout()),this,SLOT(PauseToGoTimerSlot()));
+    connect(this->RecoverTimer,SIGNAL(timeout()),this,SLOT(RecoverOATimerSlot()));
 
     connect(this->ReadVTKPipeProcess,SIGNAL(UpdateInfoSignal(VTKInfo_t)),this,SLOT(UpdateVTKInfoSlot(VTKInfo_t)));
     connect(this->ReadVTPPipeProcess,SIGNAL(UpdateInfoSignal(VTPInfo_t)),this,SLOT(UpdateVTPInfoSlot(VTPInfo_t)));
@@ -182,6 +185,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->fileWatcher,SIGNAL(fileChanged(const QString &)),this,SLOT(fileChangedSlot(const QString &)));
     connect(this->CartStateCtlProcess,SIGNAL(BroadcastCartStateSignal(CartState_e)),this,SLOT(CartStateSyncSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(BroadcastCartStateSignal(CartState_e)),this,SLOT(WriteMainPipeSlot(CartState_e)));
+    connect(this->CartStateCtlProcess,SIGNAL(SettingOAToggleSignal(CartState_e)),this,SLOT(SettingOAToggleSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(PNGButtonToggleSignal()),this,SLOT(PNGButtonToggleSlot()));
 #if(BLUETOOTH_SERIAL_USED)
     connect(this->BTCtlProcess,SIGNAL(BTRxRCCMDSignal(RCCMD_e)),this,SLOT(BTRCCmdSlot(RCCMD_e)));
@@ -220,6 +224,94 @@ void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
         this->tcpSocketSendMessageSlot(StationNameStr);
     }
     //qDebug()<<"PnG:"<<this->CartWantToPNGState<< this->CartInPauseState;
+}
+
+void FTR_CTR3SpeedCtl::SettingOAToggleSlot(CartState_e cartState)
+{
+    if(cartState == STATE_VTK)
+    {
+        this->VTKInfo.CtlByte    &= 0x3F;
+        qDebug("SetOA@VTK:0x%x\n",this->VTKInfo.CtlByte);
+    }
+    else if(cartState == STATE_VTP)
+    {
+        this->VTPInfo.CtlByte   &= 0x3F;
+        qDebug("SetOA@VTP:0x%x\n",this->VTPInfo.CtlByte);
+    }
+    this->RecoverTimer->start(this->RecoverOATimeout*1000);
+}
+
+bool FTR_CTR3SpeedCtl::SettingOAGlobalBaseJsonSlot(void)
+{
+    this->SettingJsonFile->setFileName(this->SettingJsonFileName);
+    if(!this->SettingJsonFile->isOpen())
+    {
+        if(this->SettingJsonFile->open(QIODevice::ReadOnly))
+        {
+            QByteArray data=this->SettingJsonFile->readAll();
+            this->SettingJsonFile->close();
+
+            //使用json文件对象加载字符串
+            QJsonParseError json_error;
+            QJsonDocument doc=QJsonDocument::fromJson(data,&json_error);
+
+            if(json_error.error != QJsonParseError::NoError)
+            {
+                qDebug()<<"Setting JSON ERROR!";
+                return false;
+            }
+
+            //判断是否对象
+            if(doc.isObject())
+            {
+                //把json文档转换为json对象
+                QJsonObject obj=doc.object();
+
+                this->GlobaOAStateFlag = (this->GlobaOAStateFlag)?(false):(true);
+        #if(1)
+            //RC parameter setting
+                if(obj.contains("tof_oa_rc")) obj.insert("tof_oa_rc",this->GlobaOAStateFlag);
+                if(obj.contains("us_oa_rc")) obj.insert("us_oa_rc",this->GlobaOAStateFlag);
+            //end RC parameter setting
+
+            //VTP parameter setting
+                if(obj.contains("tof_oa_vtp")) obj.insert("tof_oa_vtp",this->GlobaOAStateFlag);
+                if(obj.contains("us_oa_vtp")) obj.insert("us_oa_vtp",this->GlobaOAStateFlag);
+            //end VTP parameter setting
+
+            //VTK parameter setting
+                if(obj.contains("tof_oa_vtk")) obj.insert("tof_oa_vtk",this->GlobaOAStateFlag);
+                if(obj.contains("us_oa_vtk")) obj.insert("us_oa_vtk",this->GlobaOAStateFlag);
+            //end VTK parameter setting
+
+            //march parameter setting
+                if(obj.contains("tof_oa_march")) obj.insert("tof_oa_march",this->GlobaOAStateFlag);
+                if(obj.contains("us_oa_march")) obj.insert("us_oa_march",this->GlobaOAStateFlag);
+            //end march parameter setting
+
+                doc.setObject(obj);
+
+                this->SettingJsonFile->open(QIODevice::WriteOnly|QIODevice::Truncate);
+
+                this->SettingJsonFile->seek(0);
+                this->SettingJsonFile->write(doc.toJson());
+                this->SettingJsonFile->flush();
+                this->SettingJsonFile->close();
+        #endif
+                qDebug()<<"SOAG:"<<this->SettingJsonFileName<<this->GlobaOAStateFlag<<"Successful!";
+            }
+            else
+            {
+                qDebug()<<"JSON no Object";
+                return false;
+            }
+        }
+        else
+        {
+            qDebug()<<"Open Setting Json faile";
+        }
+    }
+    return true;
 }
 
 void FTR_CTR3SpeedCtl::UpdateVelocitySlot(MotorCtrlInfo MotorCtl)
@@ -300,8 +392,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
     }
     else
     {
-        //this->CartInPauseState
-        this->CartStateCtlProcess->BSP_SetLed(PNG_LED,this->CartInPauseState);
+        //this->CartStateCtlProcess->BSP_SetLed(PNG_LED,this->CartInPauseState);
         if(this->CartState == STATE_SB)
         {
             if(this->CartInPauseState)//in pause state
@@ -325,12 +416,30 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 {
                     this->tcpSocketSendMessageSlot("ExitConfig:");
                 }
-                qDebug()<<"ExitConfig:";
+                qDebug()<<"ExitConfigCPG:";
             }
         }
         else
         {
-            this->IntoConfigureModeFlag = false;
+            if(this->CartState == STATE_MOTOR_RELEASE)
+            {
+                if(this->CartInPauseState && (!this->InSetOAGlobalFlag))//in pause state
+                {
+                    //qDebug()<<"ChangeOAS:";
+                    this->SettingOAGlobalBaseJsonSlot();
+                    this->InSetOAGlobalFlag = true;
+                }
+            }
+            if(this->IntoConfigureModeFlag)
+            {
+                this->WriteMainPipeSlot(STATE_SB);
+                this->IntoConfigureModeFlag = false;
+                if(this->SocketReadyFlag)
+                {
+                    this->tcpSocketSendMessageSlot("ExitConfig:");
+                }
+                qDebug()<<"ExitConfigCMC:";
+            }
         }
     }
 
@@ -361,6 +470,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartWantToPNGState = false;
 
                     this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,LOW);
+
+                    this->InSetOAGlobalFlag = false;
 
                     //this->Time2SendData->stop();
                 }
@@ -490,8 +601,10 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     //if(!this->TaskFlag.TaskFlagKeepSendModeChange)  this->PreCartState = this->CartState;//state sync successful
                     //if(this->TaskFlag.TaskFlagKeepSendModeChange) this->VTP_Enter();
 
+                    this->VTP_InitParameter();
                     this->PreCartState = this->CartState;//state sync successful
                     this->VTP_Enter();
+
 
                     this->CartWantToPNGState = false;
 
@@ -569,6 +682,23 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         {
             if(this->batCapacityInfo.lessThen20Flag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_L1_S1_L1_S1);
         }
+
+        if(this->CartInPauseState)
+        {
+            this->CartStateCtlProcess->BSP_SetLed(PNG_LED,this->CartInPauseState);
+        }
+        else
+        {
+            if( ((this->CartState == STATE_VTK) && (0xC0 & this->VTKInfo.CtlByte)) ||\
+                ((this->CartState == STATE_VTP) && (0xC0 & this->VTPInfo.CtlByte)))
+            {
+                this->CartStateCtlProcess->BSP_LedToggle(PNG_LED);
+            }
+            else
+            {
+                this->CartStateCtlProcess->BSP_SetLed(PNG_LED,0);
+            }
+        }
     }
 }
 
@@ -576,6 +706,16 @@ void FTR_CTR3SpeedCtl::PauseToGoTimerSlot(void)
 {
     emit this->CartStateCtlProcess->PNGButtonToggleSignal();
     this->PauseToGoTimer->stop();
+}
+
+void FTR_CTR3SpeedCtl::RecoverOATimerSlot(void)
+{
+    this->RecoverTimer->stop();
+    this->VTKInfo.CtlByte = this->SettingParameterFromJson.VTKCtlByte.CtlByte;;
+    this->VTPInfo.CtlByte = this->SettingParameterFromJson.VTPCtlByte.CtlByte;
+    //cout<<"OARecover:"<<hex<<this->VTKInfo.CtlByte<<this->VTPInfo.CtlByte<<endl;
+    //printf("OARecover:0x%x,0x%x\n",this->VTKInfo.CtlByte,this->VTPInfo.CtlByte);
+    qDebug("OARecover:0x%x,0x%x\n",this->VTKInfo.CtlByte,this->VTPInfo.CtlByte);
 }
 
 void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
@@ -975,6 +1115,12 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 //把json文档转换为json对象
                 QJsonObject obj=doc.object();
 
+                if(obj.contains("Recover_OA_Timeout"))
+                {
+                    this->RecoverOATimeout = obj.value("Recover_OA_Timeout").toInt();
+                    qDebug()<<"Recover_OA_Timeout:"<<this->RecoverOATimeout;
+                }
+
                 if(obj.contains("Lamp_En_In_VTK"))
                 {
                     this->LampEnInVTKFlag = obj.value("Lamp_En_In_VTK").toBool();
@@ -997,6 +1143,12 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 {
                     this->ShowLogFlag.vtpRtLogFlag = obj.value("vtp_log").toBool();
                     qDebug()<<"vtp_log"<<this->ShowLogFlag.vtpRtLogFlag;
+                }
+
+                if(obj.contains("tx_log"))
+                {
+                    this->ShowLogFlag.ShowTxLogFlag = obj.value("tx_log").toBool();
+                    qDebug()<<"tx_log"<<this->ShowLogFlag.ShowTxLogFlag;
                 }
 
                 if(obj.contains("rt_log"))
@@ -1053,6 +1205,13 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                     this->SettingParameterFromJson.action = (ActionOnCrossType_e)(obj.value("default_action").toInt());
                     qDebug()<<"default_action"<<this->SettingParameterFromJson.action;
                 }
+
+                if(obj.contains("uturn_oa_dis"))
+                {
+                    this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation = obj.value("uturn_oa_dis").toBool();
+                    qDebug()<<"uturn_oa_dis"<<this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation;
+                }
+
                 if(obj.contains("tof_oa_vtp"))
                 {
                     this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off = obj.value("tof_oa_vtp").toBool();
@@ -1091,10 +1250,10 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 }
             //end march parameter setting
 
-                if(obj.contains("station_info"))
-                {
-                    qDebug()<<obj.value("station_info");
-                }
+                this->GlobaOAStateFlag = (this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.USOAOn_Off ||\
+                                          this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir || this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off ||\
+                                          this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off ||\
+                                          this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.USOAOn_Off);
             }
             else
             {

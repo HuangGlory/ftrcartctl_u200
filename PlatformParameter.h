@@ -577,13 +577,14 @@ typedef struct _VTKInfo_t
 {
     uint16_t VTKDist;
     int8_t   VTKAngle;
+    uint8_t  CtlByte;
 }VTKInfo_t;
 
 typedef struct _CtlByteFlag_t
 {
     quint8 dump0 : 1;
     quint8 dump1 : 1;
-    quint8 dump2 : 1;
+    quint8 OASetOnStation : 1;
     quint8 dump3 : 1;
 
     quint8 dump4 : 1;
@@ -632,7 +633,7 @@ typedef struct _ShowLogFlag_t
     uint8_t ShowMixLogFlag      : 1;
     uint8_t SaveLog2FileFlag    : 1;
     uint8_t vtpRtLogFlag        : 1;
-
+    uint8_t ShowTxLogFlag       : 1;
 }ShowLogFlag_t;
 
 enum BeepType_t

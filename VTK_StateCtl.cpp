@@ -7,6 +7,7 @@ void FTR_CTR3SpeedCtl::VTK_Exit()//CMD = 0xEE
 void FTR_CTR3SpeedCtl::VTK_Enter()//CMD = 0xED
 {
     this->SendCMD(CMD_ENTER_VTK,this->SettingParameterFromJson.VTKCtlByte.CtlByte);
+    this->VTKInfo.CtlByte = this->SettingParameterFromJson.VTKCtlByte.CtlByte;
 }
 void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
 {
@@ -32,7 +33,7 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
     ByteArray[11]=((qint16)(this->pose.yaw + 0.5) >> 8) & 0xFF;
     ByteArray[12]=(qint16)(this->pose.yaw + 0.5) & 0xFF;
 #else
-    ByteArray[7]=0x00;
+    ByteArray[7]=this->VTKInfo.CtlByte;
     ByteArray[8]=0x00;
 
     ByteArray[9]=0x00;
