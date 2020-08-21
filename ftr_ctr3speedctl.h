@@ -44,9 +44,21 @@ using namespace std;
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
 
 #if(PLATFORM == PLATFORM_U250)
-#define VERSION                         tr("ftrCartCtl Ver:0.0.3.00.U200@20200817\n\n")
+#define USED_DEFAULT_PARAMETER_ON_STATION   (1)
+
+#define VERSION                         tr("ftrCartCtl Ver:0.0.3.02.U200@20200821\n\n")
 /***********************
  * log:
+ * Ver:0.0.3.02.U200@20200821
+ * 1.控制P&G不同的闪灯功能提示
+ * 2.修改进入配置模式，SB下按三下P&G；
+ * 3.VTK下，进入Idle时，加灯号提示
+ *
+ * Ver:0.0.3.01.U200@20200821
+ * 1.看到站点时暂时使用全局配置信息
+ * 2.action/arc turning/ 不看站点信息，也不看三角形
+ * 3.report version info to socket when receive "VersionInfo:"
+ *
  * Ver:0.0.3.00.U200@20200817
  * 1.add settting OA quickly in every mode
  * 2.增加有OA用P&G灯提示，没OA时灯灭，有OA时灯1S闪一次
@@ -350,8 +362,10 @@ private:
     bool            CartInPauseState;
     bool            CartWantToPNGState;
     bool            HSBeUsedFlag;
+    bool            VTKInIdleFlag;
     bool            SpeedUpAndDownState;
-    bool            StartActionOnEndTapeFlag;
+    bool            StartActionFlag;
+    bool            InArcTurningFlag;
     bool            InPauseStateFlag;
     bool            GetVersionOfEBoxFlag;
     bool            Wait4CameraReadyIndecateFlag;
@@ -366,6 +380,7 @@ private:
 
     bool            GlobaOAStateFlag;
 
+    quint8          cnt4IntoConfigModePNGToggle;
     quint8          RecoverOATimeout;
     int16_t         LeftSettingSpeed;
     int16_t         RightSettingSpeed;

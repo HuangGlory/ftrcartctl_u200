@@ -16,6 +16,10 @@ CartStateSetting::CartStateSetting(QString saveFileName)
     this->JsonFile      = new QFile;
     this->JsonFile->setFileName(this->saveFileNamea);
 
+    this->InConfigFlag  = false;
+    this->CameraReadyFlag = false;
+    this->VTKInIdleFlag = false;
+
     this->LoopTimer = new QTimer;
     this->LEDBlinkSpeedCtlTimer = new QTimer;
     this->CurrentCartState = STATE_SB;
@@ -130,7 +134,16 @@ void CartStateSetting::LEDBlinkSpeedCtlTimerSlot()
     {
     case STATE_SB:
         {
-            this->BSP_LedToggle(SB_LED);
+            if(this->InConfigFlag)
+            {
+                this->BSP_LedToggle(SB_LED);
+                this->BSP_LedToggle(RC_LED);
+                this->BSP_LedToggle(VTP_LED);
+            }
+            else
+            {
+                this->BSP_LedToggle(SB_LED);
+            }
         }
         break;
     case STATE_MOTOR_RELEASE:
@@ -146,12 +159,30 @@ void CartStateSetting::LEDBlinkSpeedCtlTimerSlot()
         break;
     case STATE_VTK:
         {
-            this->BSP_LedToggle(RC_LED);
+            if(this->CameraReadyFlag && (!this->VTKInIdleFlag))
+            {
+                this->BSP_LedToggle(RC_LED);
+            }
+            else
+            {
+                this->BSP_LedToggle(SB_LED);
+                this->BSP_LedToggle(RC_LED);
+                this->BSP_LedToggle(VTP_LED);
+            }
         }
         break;
     case STATE_VTP:
         {
-            this->BSP_LedToggle(VTP_LED);
+            if(this->CameraReadyFlag)
+            {
+                this->BSP_LedToggle(VTP_LED);
+            }
+            else
+            {
+                this->BSP_LedToggle(SB_LED);
+                this->BSP_LedToggle(RC_LED);
+                this->BSP_LedToggle(VTP_LED);
+            }
         }
         break;
 
@@ -363,6 +394,33 @@ void CartStateSetting::LoopTimerSlot()
 void CartStateSetting::SetCartStateExternal(CartState_e state)
 {
      this->CurrentCartState = (this->PreCartState == STATE_SB)?(state):(STATE_SB);
+}
+
+void CartStateSetting::SetInConfigModeFlagSlot(bool state)
+{
+    this->InConfigFlag = state;
+    this->BSP_SetLed(SB_LED,LOW);
+    this->BSP_SetLed(RC_LED,LOW);
+    this->BSP_SetLed(VTP_LED,LOW);
+}
+
+void CartStateSetting::SetCameraReadyFlagSlot(bool state)
+{
+    this->CameraReadyFlag = state;
+    this->BSP_SetLed(SB_LED,LOW);
+    this->BSP_SetLed(RC_LED,LOW);
+    this->BSP_SetLed(VTP_LED,LOW);
+}
+
+void CartStateSetting::SetVTKInIdleFlag(bool state)
+{
+    this->VTKInIdleFlag = state;
+
+    this->LEDBlinkSpeedCtlTimer->start((this->CameraReadyFlag && this->VTKInIdleFlag)?(FAST_BLINK_TIME):(SLOW_BLINK_TIME));
+
+    this->BSP_SetLed(SB_LED,LOW);
+    this->BSP_SetLed(RC_LED,LOW);
+    this->BSP_SetLed(VTP_LED,LOW);
 }
 
 int8_t CartStateSetting::ModeChangeBaseJson(QString mode,int value)

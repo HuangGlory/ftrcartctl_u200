@@ -86,6 +86,7 @@ void FTR_CTR3SpeedCtl::ReadVTKInfoFromPipeSlot()
 
 void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
 {
+    if(this->Wait4CameraReadyIndecateFlag) this->CartStateCtlProcess->SetCameraReadyFlagSlot(true);//camera ready
     this->Wait4CameraReadyIndecateFlag = false;
     this->VTKInfo.VTKDist = VTKInfo.VTKDist;
     this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
@@ -108,6 +109,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     }
     //quint8 CalcArcIndex = 0,NumCnt = 0;
 
+    if(this->Wait4CameraReadyIndecateFlag) this->CartStateCtlProcess->SetCameraReadyFlagSlot(true);//camera ready
     this->Wait4CameraReadyIndecateFlag = false;
     for(quint8 i = 0;i<7;i++)
     {
@@ -115,7 +117,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     }
 
 #if(PLATFORM == PLATFORM_U250)
-    if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) && (this->StartActionOnEndTapeFlag))
+    if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) && (this->StartActionFlag || this->InArcTurningFlag))
     {
         this->VTPInfo.SpeedCtl = SPEED_CTL_NULL;
     }
@@ -125,26 +127,34 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         this->VTPInfo.SpeedCtl = VTPInfo.SpeedCtl;
     }
 
-    /*if((VTPInfo.StationName == -1) && (this->StartActionOnEndTapeFlag))
+    /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
     {
 
     }
     else*/
     //if(VTPInfo.StationName != -1)
     //if(this->VTPInfo.ToStationDist != VTPInfo.ToStationDist)
+    //don't catch the station mark in action or arc turning
     if(VTPInfo.StationName != this->VTPInfo.StationName)
     {        
-        this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
-        if((this->SocketReadyFlag) && (this->VTPInfo.StationName != VTPInfo.StationName))
+        if((!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState))
         {
-            QString StationNameStr = "Station:"+QString::number(VTPInfo.StationName) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
-            this->tcpSocketSendMessageSlot(StationNameStr);
-            qDebug()<<StationNameStr;
+            this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
+            if((this->SocketReadyFlag) && (this->VTPInfo.StationName != VTPInfo.StationName))
+            {
+                QString StationNameStr = "Station:"+QString::number(VTPInfo.StationName) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
+                this->tcpSocketSendMessageSlot(StationNameStr);
+                qDebug()<<StationNameStr;
+            }
+            else
+            {
+                this->VTPInfo.StationName = VTPInfo.StationName;
+                //qDebug()<<"Station:"<<VTPInfo.StationName;
+            }
         }
         else
         {
-            this->VTPInfo.StationName = VTPInfo.StationName;
-            //qDebug()<<"Station:"<<VTPInfo.StationName;
+            qDebug()<<"GotStationNameInTurning:"<<VTPInfo.StationName;
         }
     }
 

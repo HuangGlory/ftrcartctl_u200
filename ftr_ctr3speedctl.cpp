@@ -218,6 +218,8 @@ void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
 {
     //this->TaskFlag.TaskFlagNeedToChangePNGStete = true;
     this->CartWantToPNGState = !this->CartInPauseState;
+    ++this->cnt4IntoConfigModePNGToggle;
+
     if(this->SocketReadyFlag)
     {
         QString StationNameStr = "Pause&Go:"+QString::number(this->CartWantToPNGState);
@@ -397,7 +399,9 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
         {
             if(this->CartInPauseState)//in pause state
             {
-                if(!this->IntoConfigureModeFlag)
+                //qDebug()<<this->cnt4IntoConfigModePNGToggle;
+
+                if((!this->IntoConfigureModeFlag) && (this->cnt4IntoConfigModePNGToggle >= 3))
                 {
                     this->WriteMainPipeSlot(STATE_CAMERA_RELEASE);//to release the camera
                     if(this->SocketReadyFlag)
@@ -405,6 +409,9 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                         this->tcpSocketSendMessageSlot("EnterConfig:");
                     }
                     this->IntoConfigureModeFlag = true;
+                    this->cnt4IntoConfigModePNGToggle = 0;
+                    this->CartStateCtlProcess->SetInConfigModeFlagSlot(this->IntoConfigureModeFlag);
+
                     qDebug()<<"CamearRelease@SB4Config:";
                 }
             }
@@ -412,6 +419,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
             {
                 this->WriteMainPipeSlot(STATE_SB);
                 this->IntoConfigureModeFlag = false;
+                this->CartStateCtlProcess->SetInConfigModeFlagSlot(this->IntoConfigureModeFlag);
                 if(this->SocketReadyFlag)
                 {
                     this->tcpSocketSendMessageSlot("ExitConfig:");
@@ -421,6 +429,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
         }
         else
         {
+            this->cnt4IntoConfigModePNGToggle = 0;
+
             if(this->CartState == STATE_MOTOR_RELEASE)
             {
                 if(this->CartInPauseState && (!this->InSetOAGlobalFlag))//in pause state
@@ -434,6 +444,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
             {
                 this->WriteMainPipeSlot(STATE_SB);
                 this->IntoConfigureModeFlag = false;
+                this->CartStateCtlProcess->SetInConfigModeFlagSlot(this->IntoConfigureModeFlag);
                 if(this->SocketReadyFlag)
                 {
                     this->tcpSocketSendMessageSlot("ExitConfig:");
@@ -474,6 +485,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->InSetOAGlobalFlag = false;
 
                     //this->Time2SendData->stop();
+                    this->cnt4IntoConfigModePNGToggle = 0;
+                    qDebug()<<"PNGT:"<<this->cnt4IntoConfigModePNGToggle;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -581,6 +594,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     if(this->LampEnInVTKFlag) this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
 
                     this->Wait4CameraReadyIndecateFlag = true;
+                    this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
 
                     //this->Time2SendData->start(SEND_DATA_PER);
                 }
@@ -611,6 +625,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     if(this->LampEnInVTPFlag) this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
 
                     this->Wait4CameraReadyIndecateFlag = true;
+                    this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
                 }
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
                 if(!this->ReadVTPPipeProcess->isRunning() && !this->ClearVTPPipeProcess->isRunning()) this->ReadVTPPipeProcess->start();
@@ -647,6 +662,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,LOW);
 
                     this->Wait4CameraReadyIndecateFlag = true;
+                    this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
                 }
             }
 
@@ -795,9 +811,19 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 if(convertResult)    this->RxInfo.MultiFunction          = convertValue;
 
             #if(PLATFORM == PLATFORM_U250)
+
+                if(this->VTKInIdleFlag != (bool)(this->RxInfo.MultiFunction & TKInIdleStateBit))
+                {
+                    this->VTKInIdleFlag = (bool)(this->RxInfo.MultiFunction & TKInIdleStateBit);
+                    this->CartStateCtlProcess->SetVTKInIdleFlag(this->VTKInIdleFlag);
+                }
+
                 this->SpeedUpAndDownState       = (bool)(this->RxInfo.MultiFunction & SpeedUpAndDownBit);
-                this->StartActionOnEndTapeFlag  = (bool)(this->RxInfo.MultiFunction & StartActionBit);
+                this->StartActionFlag           = (bool)(this->RxInfo.MultiFunction & StartActionBit);
+                this->InArcTurningFlag          = (bool)(this->RxInfo.MultiFunction & InArcTurningBit);
+
                 bool InPauseStateFlag           = (bool)(this->RxInfo.MultiFunction & InPauseStateBit);
+
 
                 if(InPauseStateFlag != this->InPauseStateFlag)//pause case action
                 {
@@ -877,9 +903,9 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 }
                 else if(STATE_VTP == this->CartState)
                 {
-                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);Vel:(%5,%6);SUDS(%14)\n")
+                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);SA(%5);IAT(%6);SUDS(%7);\n")
                             .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
-                            .arg(this->RxInfo.RightTargetSpeed).arg(this->RxInfo.MotorVelocity.linearV).arg(this->RxInfo.MotorVelocity.angularV)
+                            .arg(this->RxInfo.RightTargetSpeed).arg(this->StartActionFlag).arg(this->InArcTurningFlag)
                             .arg(this->SpeedUpAndDownState));
                 }
                 else
@@ -1517,7 +1543,6 @@ void FTR_CTR3SpeedCtl::tcpServerConnectionSlot(void)
     qDebug()<<"TCP Server Connected"<<ip<<":"<<port<<"connect success";
 
     connect(this->tcpSocket,SIGNAL(readyRead()),this,SLOT(tcpSocketReadSlot()));
-
     connect(this->tcpSocket,SIGNAL(disconnected()),this,SLOT(tcpSocketDisconnectSlot()));
 }
 
@@ -1633,19 +1658,34 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
 
                 if(this->VTPInfo.StationName != -1)
                 {
+                #if(!USED_DEFAULT_PARAMETER_ON_STATION)
+
                     convertValue   = RxMessageList.at(0).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.CtlByte = (uint8_t)(convertValue);
 
-                    convertValue   = RxMessageList.at(1).toInt(&convertResult);
-                    if(convertResult)  this->VTP_UpdateAction(ActionOnCrossType_e(convertValue));
-
                     convertValue   = RxMessageList.at(3).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.MaxSpeed = (uint16_t)(convertValue);
+                #endif
+
+                    convertValue   = RxMessageList.at(1).toInt(&convertResult);
+                    if(convertResult)  this->VTP_UpdateAction(ActionOnCrossType_e(convertValue));
 
                     convertValue   = RxMessageList.at(4).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.PauseTime = (uint16_t)(convertValue);
                 }
                 //qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime;
+            }
+        }
+        else if(RxMessage.startsWith("VersionInfo:"))
+        {
+            QFile file;
+            file.setFileName("/home/pi/ftrCartCtl/version");
+            if(file.open(QIODevice::ReadOnly))
+            {
+                QString versionStr = file.readAll();
+                this->tcpSocketSendMessageSlot(versionStr);
+
+                file.close();
             }
         }
         //this->tcpSocketSendMessageSlot(RxMessage);

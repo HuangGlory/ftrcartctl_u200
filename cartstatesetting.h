@@ -166,6 +166,10 @@ public slots:
     void KeyISRSlot(void);
 
     void SetCartStateExternal(CartState_e);
+
+    void SetInConfigModeFlagSlot(bool state);
+    void SetCameraReadyFlagSlot(bool state);
+    void SetVTKInIdleFlag(bool state);
 public:
     QString saveFileNamea;
     QTimer *LoopTimer;
@@ -181,6 +185,9 @@ public:
     int LED_PIN[LEDn] ={SB_LED_PIN,VTK_LED_PIN,VTP_LED_PIN,PNG_LED_PIN,LAMP_PIN};
     int KEY_PIN[KEYn] ={SB_KEY_PIN,VTK_KEY_PIN,VTP_KEY_PIN,PNG_KEY_PIN};
 
+    bool InConfigFlag;
+    bool CameraReadyFlag;
+    bool VTKInIdleFlag;
 };
 
 #endif // CARTSTATESETTING_H

@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CartStateSetting_t {
-    QByteArrayData data[11];
-    char stringdata0[183];
+    QByteArrayData data[15];
+    char stringdata0[253];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -42,14 +42,20 @@ QT_MOC_LITERAL(6, 89, 21), // "SettingOAToggleSignal"
 QT_MOC_LITERAL(7, 111, 13), // "LoopTimerSlot"
 QT_MOC_LITERAL(8, 125, 25), // "LEDBlinkSpeedCtlTimerSlot"
 QT_MOC_LITERAL(9, 151, 10), // "KeyISRSlot"
-QT_MOC_LITERAL(10, 162, 20) // "SetCartStateExternal"
+QT_MOC_LITERAL(10, 162, 20), // "SetCartStateExternal"
+QT_MOC_LITERAL(11, 183, 23), // "SetInConfigModeFlagSlot"
+QT_MOC_LITERAL(12, 207, 5), // "state"
+QT_MOC_LITERAL(13, 213, 22), // "SetCameraReadyFlagSlot"
+QT_MOC_LITERAL(14, 236, 16) // "SetVTKInIdleFlag"
 
     },
     "CartStateSetting\0KeyISRSignl\0\0"
     "BroadcastCartStateSignal\0CartState_e\0"
     "PNGButtonToggleSignal\0SettingOAToggleSignal\0"
     "LoopTimerSlot\0LEDBlinkSpeedCtlTimerSlot\0"
-    "KeyISRSlot\0SetCartStateExternal"
+    "KeyISRSlot\0SetCartStateExternal\0"
+    "SetInConfigModeFlagSlot\0state\0"
+    "SetCameraReadyFlagSlot\0SetVTKInIdleFlag"
 };
 #undef QT_MOC_LITERAL
 
@@ -59,7 +65,7 @@ static const uint qt_meta_data_CartStateSetting[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-       8,   14, // methods
+      11,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -67,16 +73,19 @@ static const uint qt_meta_data_CartStateSetting[] = {
        4,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    0,   54,    2, 0x06 /* Public */,
-       3,    1,   55,    2, 0x06 /* Public */,
-       5,    0,   58,    2, 0x06 /* Public */,
-       6,    1,   59,    2, 0x06 /* Public */,
+       1,    0,   69,    2, 0x06 /* Public */,
+       3,    1,   70,    2, 0x06 /* Public */,
+       5,    0,   73,    2, 0x06 /* Public */,
+       6,    1,   74,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       7,    0,   62,    2, 0x0a /* Public */,
-       8,    0,   63,    2, 0x0a /* Public */,
-       9,    0,   64,    2, 0x0a /* Public */,
-      10,    1,   65,    2, 0x0a /* Public */,
+       7,    0,   77,    2, 0x0a /* Public */,
+       8,    0,   78,    2, 0x0a /* Public */,
+       9,    0,   79,    2, 0x0a /* Public */,
+      10,    1,   80,    2, 0x0a /* Public */,
+      11,    1,   83,    2, 0x0a /* Public */,
+      13,    1,   86,    2, 0x0a /* Public */,
+      14,    1,   89,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void,
@@ -89,6 +98,9 @@ static const uint qt_meta_data_CartStateSetting[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 4,    2,
+    QMetaType::Void, QMetaType::Bool,   12,
+    QMetaType::Void, QMetaType::Bool,   12,
+    QMetaType::Void, QMetaType::Bool,   12,
 
        0        // eod
 };
@@ -107,6 +119,9 @@ void CartStateSetting::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 5: _t->LEDBlinkSpeedCtlTimerSlot(); break;
         case 6: _t->KeyISRSlot(); break;
         case 7: _t->SetCartStateExternal((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
+        case 8: _t->SetInConfigModeFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 9: _t->SetCameraReadyFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 10: _t->SetVTKInIdleFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -171,13 +186,13 @@ int CartStateSetting::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 11)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 11;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 11)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 8;
+        _id -= 11;
     }
     return _id;
 }

@@ -170,6 +170,7 @@ typedef enum
 #define StartActionBit                              (uint16_t)(0x0800)//BIT(11)
 #define ClearYawBit                                 (uint16_t)(0x1000)//BIT(12)
 #define InPauseStateBit                             (uint16_t)(0x2000)//BIT(13)
+#define InArcTurningBit                             (uint16_t)(0x4000)//BIT(14)
 
 typedef struct{
     double norm;
