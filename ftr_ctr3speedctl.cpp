@@ -18,11 +18,12 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
 
-    //this->test();    
     this->batCapacityInfo.voltage       = BAT_MAX_VOLTAGE;
     this->batCapacityInfo.lessThan10Flag = false;
     this->batCapacityInfo.lessThen20Flag = false;
 
+    this->InODOCaliFlag                 = false;
+    this->NeedIntoODOCaliFlag           = false;
     this->InSetOAGlobalFlag             = false;
     this->SocketReadyFlag               = false;
     this->EboxReadyFlag                 = false;
@@ -72,11 +73,20 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->VTKOutputPipeFile         = new QFile(this->VTKOutputPipeName);
     this->VTPOutputPipeFile         = new QFile(this->VTPOutputPipeName);
 
+    /*************ftrCartCtl pipe************************************/
+    this->ftrCartCtlInputPipeName   = FTRCARTCTL_IN_PIPE_NAME;
+    this->ftrCartCtlOutputPipeName  = FTRCARTCTL_OUT_PIPE_NAME;
+    this->ftrCartCtlInputPipeFile   = new QFile(this->ftrCartCtlInputPipeName);
+    this->ftrCartCtlOutputPipeFile  = new QFile(this->ftrCartCtlOutputPipeName);
+    /****************************************************************/
+
     this->ReadVTKPipeProcess        = new ReadVTKPipe_Thread(this->VTKOutputPipeName);
     this->ClearVTKPipeProcess       = new ClearPipe_Thread(this->VTKOutputPipeName);
 
     this->ReadVTPPipeProcess        = new ReadVTPPipe_Thread(this->VTPOutputPipeName);
     this->ClearVTPPipeProcess       = new ClearPipe_Thread(this->VTPOutputPipeName);
+
+    this->ReadInputPipeProcess      = new ReadInputPipe_Thread(this->ftrCartCtlInputPipeName);
 
     this->theMinR                   = 1000;
     this->ArcInfo.ArcLocation       = NULL_LOCALTION;
@@ -88,7 +98,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
-    while(!(this->MainInputPipeFile->exists() && this->VTKOutputPipeFile->exists() && this->VTPOutputPipeFile->exists()));
+    while(!(this->MainInputPipeFile->exists() && this->VTKOutputPipeFile->exists() && this->VTPOutputPipeFile->exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
     qDebug()<<"Pipe file ready";
 #endif
 
@@ -98,8 +108,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->tcpServer->setMaxPendingConnections(2);
 
     this->OpenPipe(this->MainInputPipeFile,QIODevice::WriteOnly);
+    this->OpenPipe(this->ftrCartCtlOutputPipeFile,QIODevice::ReadWrite);
     //this->OpenPipe(this->VTKOutputPipeFile,QIODevice::ReadOnly);
     //this->OpenPipe(this->VTPOutputPipeFile,QIODevice::ReadOnly);
+
 
 
     //this->fileWatcher->addPath(this->MainInputPipeName);
@@ -169,8 +181,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     }
 #endif
 
-    connect(this,SIGNAL(ReadVTKInfoSignal()),this,SLOT(ReadVTKInfoFromPipeSlot()));
-    connect(this,SIGNAL(ReadVTPInfoSignal()),this,SLOT(ReadVTPInfoFromPipeSlot()));
+    //connect(this,SIGNAL(ReadVTKInfoSignal()),this,SLOT(ReadVTKInfoFromPipeSlot()));
+    //connect(this,SIGNAL(ReadVTPInfoSignal()),this,SLOT(ReadVTPInfoFromPipeSlot()));
     connect(this->Time2Loop,SIGNAL(timeout()),this,SLOT(Time2LoopSlot()));
     connect(this->Time2SendData,SIGNAL(timeout()),this,SLOT(Timer2SendDataSlot()));
     connect(this->PauseToGoTimer,SIGNAL(timeout()),this,SLOT(PauseToGoTimerSlot()));
@@ -178,6 +190,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 
     connect(this->ReadVTKPipeProcess,SIGNAL(UpdateInfoSignal(VTKInfo_t)),this,SLOT(UpdateVTKInfoSlot(VTKInfo_t)));
     connect(this->ReadVTPPipeProcess,SIGNAL(UpdateInfoSignal(VTPInfo_t)),this,SLOT(UpdateVTPInfoSlot(VTPInfo_t)));
+    connect(this->ReadInputPipeProcess,SIGNAL(UpdateInfoSignal(QString)),this,SLOT(UpdatePipeInputSlot(QString)));
+
 #if(PLATFORM == PLATFORM_R3)
     connect(this->imuData,SIGNAL(UpdateInfoSignal(Pose_t)),this,SLOT(UpdateIMUInfoSlot(Pose_t)));
 #endif
@@ -211,7 +225,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 
 //    this->Time2Loop->start(LOOP_PER);
 //    this->Time2SendData->start(SEND_DATA_PER);
-
+    if(!this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->start();
 }
 
 void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
@@ -486,7 +500,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                     //this->Time2SendData->stop();
                     this->cnt4IntoConfigModePNGToggle = 0;
-                    qDebug()<<"PNGT:"<<this->cnt4IntoConfigModePNGToggle;
+                    //qDebug()<<"PNGT:"<<this->cnt4IntoConfigModePNGToggle;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -689,6 +703,10 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
     //qDebug()<<tickCntPerSecond;
     if(this->AppUART->isOpen())
     {
+        if(this->NeedIntoODOCaliFlag)
+        {
+            this->SendCMD(CMD_DIAM_CALIBRATION,0x01);
+        }
         if((tickCntPerSecond % 2) == 0)
         {
             if(this->Wait4CameraReadyIndecateFlag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_1);
@@ -824,7 +842,6 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
 
                 bool InPauseStateFlag           = (bool)(this->RxInfo.MultiFunction & InPauseStateBit);
 
-
                 if(InPauseStateFlag != this->InPauseStateFlag)//pause case action
                 {
                     this->InPauseStateFlag = InPauseStateFlag;
@@ -840,6 +857,11 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                     {
                         if(this->PauseToGoTimer->isActive()) this->PauseToGoTimer->stop();
                     }
+                }
+                if((bool)(this->RxInfo.MultiFunction & InODOCaliStateBit))
+                {
+                    this->InODOCaliFlag         = true;
+                    this->NeedIntoODOCaliFlag   = false;
                 }
             #else //R3
                 if(this->RxInfo.MultiFunction & ClearYawBit) this->imuData->ClearYaw();
@@ -945,6 +967,18 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 }
             }
 
+        }
+        else if(RxInfo.contains("ODO:"))//ODO calibration
+        {
+            RxInfo = RxInfo.replace("ODO:","");
+
+            QStringList RxInfoList = RxInfo.split(",", QString::SkipEmptyParts);
+            //qDebug()<<RxInfoList;
+
+            if(RxInfoList.size() == 3)
+            {
+                qDebug()<<RxInfoList;
+            }
         }
         else if(this->GetVersionOfEBoxFlag)
         {
@@ -1228,8 +1262,14 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
 
                 if(obj.contains("default_action"))
                 {
-                    this->SettingParameterFromJson.action = (ActionOnCrossType_e)(obj.value("default_action").toInt());
-                    qDebug()<<"default_action"<<this->SettingParameterFromJson.action;
+                    this->SettingParameterFromJson.actionEndTape = (ActionOnCrossType_e)(obj.value("default_action").toInt());
+                    qDebug()<<"default_action"<<this->SettingParameterFromJson.actionEndTape;
+                }
+
+                if(obj.contains("default_action_mark"))
+                {
+                    this->SettingParameterFromJson.actionOnMark = (ActionOnCrossType_e)(obj.value("default_action_mark").toInt());
+                    qDebug()<<"default_action_on_mark"<<this->SettingParameterFromJson.actionOnMark;
                 }
 
                 if(obj.contains("uturn_oa_dis"))
@@ -1686,6 +1726,44 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                 this->tcpSocketSendMessageSlot(versionStr);
 
                 file.close();
+            }
+        }
+        else if(RxMessage.startsWith("FunctionCali"))
+        {
+            qDebug()<<RxMessage;
+            RxMessage = RxMessage.replace("FunctionCali:","");
+            RxMessage = RxMessage.replace("\n","");
+
+            QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
+
+            if(RxMessageList.size() == 2)
+            {
+                if(RxMessageList.at(0).contains("CameraCali"))
+                {
+                    if(RxMessageList.at(0).toInt() == 1)
+                    {
+                        this->WriteMainPipeSlot(STATE_CAMERA_RELEASE);//to release the camera
+                        this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
+                    }
+                    else
+                    {
+                        this->WriteMainPipeSlot(STATE_SB);
+                        this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,LOW);
+                    }
+                    qDebug()<<"CC:"<<RxMessageList.at(0);
+                }
+                else if(RxMessageList.at(0).contains("WheelCali"))
+                {
+                    if(RxMessageList.at(1).toInt() == 1)
+                    {
+                        this->NeedIntoODOCaliFlag = true;
+                    }
+                    else
+                    {
+                        this->NeedIntoODOCaliFlag = false;
+                    }
+                    qDebug()<<"WC:"<<RxMessageList.at(0);
+                }
             }
         }
         //this->tcpSocketSendMessageSlot(RxMessage);

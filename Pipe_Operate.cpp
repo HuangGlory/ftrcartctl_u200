@@ -1,9 +1,7 @@
 #include "ftr_ctr3speedctl.h"
 
-
-
 void FTR_CTR3SpeedCtl::OpenPipe(QFile *pipeFile,QIODevice::OpenMode flags)
-{    
+{
     if(pipeFile->exists() && (!pipeFile->isOpen()))
     {
         if(pipeFile->open(flags))
@@ -16,36 +14,36 @@ void FTR_CTR3SpeedCtl::OpenPipe(QFile *pipeFile,QIODevice::OpenMode flags)
         }
     }
 }
-void FTR_CTR3SpeedCtl::ClosePipe(QFile *pipeFile)
-{
-    pipeFile->close();
-}
+//void FTR_CTR3SpeedCtl::ClosePipe(QFile *pipeFile)
+//{
+//    pipeFile->close();
+//}
 
-void FTR_CTR3SpeedCtl::ClearPipe(QFile *pipeFile)
-{
-#if(0)
-    QString cmd = "sudo cat ";
-    cmd.append(pipeFile->fileName());
-    this->clearPipeProcess->start(cmd);
-    this->clearPipeProcess->waitForStarted(50);
-    //qDebug()<<cmd<<this->clearPipeProcess->readAllStandardError()<<this->clearPipeProcess->readAllStandardOutput();
-    QThread::sleep(1);
-    this->clearPipeProcess->kill();
-    this->clearPipeProcess->waitForFinished(50);
-    qDebug()<<cmd;
-#else
-    while(pipeFile->atEnd())
-    {
-        QString VTKInfo = pipeFile->readLine(0);
-        qDebug()<<VTKInfo;
-    }
-    qDebug()<<"Clear Pipe finished!";
-#endif
-}
+//void FTR_CTR3SpeedCtl::ClearPipe(QFile *pipeFile)
+//{
+//#if(0)
+//    QString cmd = "sudo cat ";
+//    cmd.append(pipeFile->fileName());
+//    this->clearPipeProcess->start(cmd);
+//    this->clearPipeProcess->waitForStarted(50);
+//    //qDebug()<<cmd<<this->clearPipeProcess->readAllStandardError()<<this->clearPipeProcess->readAllStandardOutput();
+//    QThread::sleep(1);
+//    this->clearPipeProcess->kill();
+//    this->clearPipeProcess->waitForFinished(50);
+//    qDebug()<<cmd;
+//#else
+//    while(pipeFile->atEnd())
+//    {
+//        QString VTKInfo = pipeFile->readLine(0);
+//        qDebug()<<VTKInfo;
+//    }
+//    qDebug()<<"Clear Pipe finished!";
+//#endif
+//}
 
 void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
 {
-    //NONE = -1,STANDBY = 0,MOTORRELEASE = 1,VISIONFOLLOW = 2,VISIONTAPE = 3
+    //NONE = -1,STANDBY = 0,MOTORRELEASE = 1,VISIONFOLLOW = 2,VISIONTAPE = 3,CameraCali = 5,
     QString state ="0";
     if((cartState == STATE_SB) || (cartState == STATE_RC))
     {
@@ -67,22 +65,28 @@ void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
     this->MainInputPipeFile->flush();
     //qDebug()<<"WriteMainPipeSlot"<<cartState<<state.toUtf8();
 }
-void FTR_CTR3SpeedCtl::ReadVTPInfoFromPipeSlot()
+
+void FTR_CTR3SpeedCtl::WriteOutPipeSlot(QString str)
 {
-    if(this->VTPOutputPipeFile->isReadable() && this->VTPOutputPipeFile->isOpen())
-    {
-        QString VTKInfo = this->VTKOutputPipeFile->readAll();
-        qDebug()<<VTKInfo;
-    }
+    qDebug()<<str;
 }
-void FTR_CTR3SpeedCtl::ReadVTKInfoFromPipeSlot()
-{
-    if(this->VTKOutputPipeFile->isReadable() && this->VTKOutputPipeFile->isOpen())
-    {
-        QString VTKInfo = this->VTKOutputPipeFile->readAll();
-        qDebug()<<VTKInfo;
-    }
-}
+
+//void FTR_CTR3SpeedCtl::ReadVTPInfoFromPipeSlot()
+//{
+//    if(this->VTPOutputPipeFile->isReadable() && this->VTPOutputPipeFile->isOpen())
+//    {
+//        QString VTKInfo = this->VTKOutputPipeFile->readAll();
+//        qDebug()<<VTKInfo;
+//    }
+//}
+//void FTR_CTR3SpeedCtl::ReadVTKInfoFromPipeSlot()
+//{
+//    if(this->VTKOutputPipeFile->isReadable() && this->VTKOutputPipeFile->isOpen())
+//    {
+//        QString VTKInfo = this->VTKOutputPipeFile->readAll();
+//        qDebug()<<VTKInfo;
+//    }
+//}
 
 void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
 {
@@ -163,15 +167,20 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     //qDebug()<<"VTPRTInfo:";
 }
 
+void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
+{
+    qDebug()<<"InPipe:"<<str;
+}
+
 #if(PLATFORM == PLATFORM_R3)
-    void FTR_CTR3SpeedCtl::UpdateIMUInfoSlot(Pose_t pose)
-    {
-        //qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
-        this->pose.norm = pose.norm;
-        this->pose.pitch= pose.pitch;
-        this->pose.roll = pose.roll;
-        this->pose.yaw  = pose.yaw;
-    }
+void FTR_CTR3SpeedCtl::UpdateIMUInfoSlot(Pose_t pose)
+{
+    //qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
+    this->pose.norm = pose.norm;
+    this->pose.pitch= pose.pitch;
+    this->pose.roll = pose.roll;
+    this->pose.yaw  = pose.yaw;
+}
 #endif
 
 void FTR_CTR3SpeedCtl::fileChangedSlot(const QString & path)

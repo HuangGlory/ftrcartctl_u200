@@ -54,10 +54,18 @@ void ReadVTPPipe_Thread::run()
                 //emit UpdateInfoSignal(VTPInfo);
             }
         #elif(PLATFORM_R3 == PLATFORM)
-            if(7 == RxInfoList.size())
+            if(10 == RxInfoList.size())
             {
-                for(quint8 i = 0;i<7;i++) this->VTPInfo.PointOnTape[i] = RxInfoList.at(i).toInt();
+                for(quint8 i = 0;i<7;i++)
+                {
+                    this->VTPInfo.PointOnTape[i] = RxInfoList.at(i).toInt();
+                }
+                this->VTPInfo.SpeedCtl = (SpeedCtl_e)(RxInfoList.at(7).toInt());
+                this->VTPInfo.StationName = (RxInfoList.at(8).toInt());
+                this->VTPInfo.ToStationDist = (RxInfoList.at(9).toUInt());
+                //qDebug()<<this->VTPInfo.SpeedCtl;
                 this->UpdateInfo();
+                //emit UpdateInfoSignal(VTPInfo);
             }
         #endif
         }

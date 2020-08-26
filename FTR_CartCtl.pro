@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.2.10.R3@20200702
-TARGET = ftrCartCtl_V0.0.3.02.U200@20200821
+TARGET = ftrCartCtl_V0.0.3.04.U200@20200826
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -32,6 +32,7 @@ SOURCES += \
     main.cpp \
     motorctrlinfo.cpp \
     rc_thread.cpp \
+    readinputpipe_thread.cpp \
     readvtkpipe_thread.cpp \
     readvtppipe_thread.cpp \
     sb_thread.cpp \
@@ -52,6 +53,7 @@ HEADERS += \
     imu.h \
     motorctrlinfo.h \
     rc_thread.h \
+    readinputpipe_thread.h \
     readvtkpipe_thread.h \
     readvtppipe_thread.h \
     sb_thread.h \

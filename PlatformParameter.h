@@ -171,6 +171,7 @@ typedef enum
 #define ClearYawBit                                 (uint16_t)(0x1000)//BIT(12)
 #define InPauseStateBit                             (uint16_t)(0x2000)//BIT(13)
 #define InArcTurningBit                             (uint16_t)(0x4000)//BIT(14)
+#define InODOCaliStateBit                           (uint16_t)(0x8000)//BIT(15)
 
 typedef struct{
     double norm;
@@ -624,8 +625,8 @@ typedef struct _CartModeEnterParameter_t
 
     double LeftDiam;
     double RightDiam;
-    ActionOnCrossType_e action;
-
+    ActionOnCrossType_e actionEndTape;
+    ActionOnCrossType_e actionOnMark;
 }CartModeEnterParameter_t;
 
 typedef struct _ShowLogFlag_t

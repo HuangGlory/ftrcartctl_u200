@@ -18,6 +18,8 @@
 #include <QFileSystemWatcher>
 #include <readvtkpipe_thread.h>
 #include <readvtppipe_thread.h>
+#include <readinputpipe_thread.h>
+
 #include <clearpipe_thread.h>
 //#include <bluetoothserialport.h>
 #include <QProcess>
@@ -41,14 +43,24 @@ using namespace std;
 #define VTK_OUTPUT_DEFAULT_PIPE_NAME    tr("/tmp/person_pipe_output")
 #define VTP_OUTPUT_DEFAULT_PIPE_NAME    tr("/tmp/tape_pipe_output")
 
+#define FTRCARTCTL_IN_PIPE_NAME         ("/tmp/ftrCartCtl_pipe_input")
+#define FTRCARTCTL_OUT_PIPE_NAME        ("/tmp/ftrCartCtl_pipe_output")
+
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
 
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.3.02.U200@20200821\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.3.04.U200@20200826\n\n")
 /***********************
  * log:
+ * Ver:0.0.3.04.U200@20200826
+ * 1.added default action on mark
+ *
+ * Ver:0.0.3.03.U200@20200824
+ * 1.增加电机直径校正
+ * 2.增加In/Out pipe
+ *
  * Ver:0.0.3.02.U200@20200821
  * 1.控制P&G不同的闪灯功能提示
  * 2.修改进入配置模式，SB下按三下P&G；
@@ -253,8 +265,8 @@ public:
     //communication with vision application
     //NONE = -1,STANDBY = 0,MOTORRELEASE = 1,VISIONFOLLOW = 2,VISIONTAPE = 3
     void OpenPipe(QFile *pipeFile,QIODevice::OpenMode flags);
-    void ClosePipe(QFile *pipeFile);
-    void ClearPipe(QFile *pipeFile);
+    //void ClosePipe(QFile *pipeFile);
+    //void ClearPipe(QFile *pipeFile);
 
     //message output
     //static void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg);
@@ -274,12 +286,15 @@ public slots:
 
     //communication with vision application
     void WriteMainPipeSlot(CartState_e cartState);
-    void ReadVTPInfoFromPipeSlot();
-    void ReadVTKInfoFromPipeSlot();
+    //void ReadVTPInfoFromPipeSlot();
+    //void ReadVTKInfoFromPipeSlot();
     void fileChangedSlot(const QString & path);
+
+    void WriteOutPipeSlot(QString str);
 
     void UpdateVTKInfoSlot(VTKInfo_t VTKInfo);
     void UpdateVTPInfoSlot(VTPInfo_t VTPInfo);
+    void UpdatePipeInputSlot(QString str);
 #if(PLATFORM == PLATFORM_R3)
     void UpdateIMUInfoSlot(Pose_t pose);
 #endif
@@ -306,8 +321,8 @@ public slots:
     void calcCapacitySlot(double voltage);
 signals:
     //void BroadcastCartStateSignal(CartState_e);
-    void ReadVTPInfoSignal();
-    void ReadVTKInfoSignal();
+    //void ReadVTPInfoSignal();
+    //void ReadVTKInfoSignal();
     void toCalcCapacitySignal(double voltage);
 private:
     void SetODOFactor(double LeftODOFactor = ODO_FACTOR,double RightODOFactor = ODO_FACTOR);
@@ -335,6 +350,8 @@ private:
     //Pipe thread
     ReadVTKPipe_Thread *ReadVTKPipeProcess;
     ReadVTPPipe_Thread *ReadVTPPipeProcess;
+    ReadInputPipe_Thread *ReadInputPipeProcess;
+
     ClearPipe_Thread   *ClearVTKPipeProcess;
     ClearPipe_Thread   *ClearVTPPipeProcess;
 
@@ -380,6 +397,9 @@ private:
 
     bool            GlobaOAStateFlag;
 
+    bool            NeedIntoODOCaliFlag;
+    bool            InODOCaliFlag;
+
     quint8          cnt4IntoConfigModePNGToggle;
     quint8          RecoverOATimeout;
     int16_t         LeftSettingSpeed;
@@ -405,6 +425,8 @@ private:
     QString         MainInputPipeName;
     QString         VTKOutputPipeName;
     QString         VTPOutputPipeName;
+    QString         ftrCartCtlInputPipeName;
+    QString         ftrCartCtlOutputPipeName;
 
     QString         EboxVersionStr;
 
@@ -412,6 +434,9 @@ private:
     QFile           *MainInputPipeFile;
     QFile           *VTKOutputPipeFile;
     QFile           *VTPOutputPipeFile;
+    QFile           *ftrCartCtlInputPipeFile;
+    QFile           *ftrCartCtlOutputPipeFile;
+
     QFile           *SaveLogFile;
 
     QFile           *SettingJsonFile;

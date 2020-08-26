@@ -1,5 +1,7 @@
 #include <QCoreApplication>
 #include "ftr_ctr3speedctl.h"
+#include <sys/types.h>//mkfifo
+#include <sys/stat.h>//mkfifo
 
 #if(0)
 #include <QMutex>
@@ -81,6 +83,11 @@ std::string -> char *        string.date();
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+
+    umask(0);
+    int result = mkfifo(FTRCARTCTL_IN_PIPE_NAME,0777);
+    result = mkfifo(FTRCARTCTL_OUT_PIPE_NAME,0777);
+
     //int ret = 0;
     //qInstallMessageHandler(myMessageOutput);
     FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);

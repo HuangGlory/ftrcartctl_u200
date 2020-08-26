@@ -35,7 +35,7 @@ void FTR_CTR3SpeedCtl::VTP_Enter()//CMD = 0x91
     ByteArray[15]=(RightDiam >> 8) & 0xFF;
     ByteArray[16]=(RightDiam & 0xFF);
 
-    ByteArray[17]=this->CartModeEnterParameter.action;
+    ByteArray[17]=this->CartModeEnterParameter.actionEndTape;
 
     ByteArray[18]= 0x00;
     ByteArray[19]= 0x00;
@@ -175,6 +175,6 @@ void FTR_CTR3SpeedCtl::VTP_InitParameter()
     this->CartModeEnterParameter.LeftDiam               = this->SettingParameterFromJson.LeftDiam;//this->LeftWheelDiameter;//(168.8850);
     this->CartModeEnterParameter.RightDiam              = this->SettingParameterFromJson.RightDiam;//this->RightWheelDiameter;//(168.9614);
 
-    this->CartModeEnterParameter.action                 = this->SettingParameterFromJson.action;//DEFAULT_ACTION;
-    this->VTP_UpdateAction(this->SettingParameterFromJson.action);
+    this->CartModeEnterParameter.actionEndTape                 = this->SettingParameterFromJson.actionEndTape;//DEFAULT_ACTION;
+    this->VTP_UpdateAction(this->SettingParameterFromJson.actionOnMark);
 }
