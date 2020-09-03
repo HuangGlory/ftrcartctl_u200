@@ -8,11 +8,16 @@
 #define RC_REDIRECT						(0)
 #define SERIAL_BYPASS                   (1)
 #define BLUETOOTH_SERIAL_USED           (0)
+#define LICENSE_USED                    (0)
+#define NUM_STATION_USED                (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
 #define SERIAL_TYPE                     (SERIAL_TYPE_USB)
-#define TTL_UART_NAME                   tr("/dev/ttyAMA0")//tr("/dev/ttyUSB0")//tr("/dev/ttyAMA0")//ttyS0
+#define TTL_UART_NAME                   tr("/dev/ttyAMA0")
+
+#define STATIONS_NUM                    (9)
+#define DIST_BT_STATION                 (1000)
 
 #define PLATFORM_R3                     (1)
 #define PLATFORM_U250                   (2)
@@ -67,6 +72,53 @@
 
     #define Y_AXIS7						(double)(0)					// MOTOR_SHAFT
 
+#else
+    #define BAT_MAX_VOLTAGE         (30.0)
+    #define BAT_MIN_VOLTAGE         (23.0)
+    #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
+
+
+    #define MOTOR_MOTOR_DIST	  	(520)//(680)//(560)//(700.0)//(520.0)   //cart width between center of tires
+    #define ANGLE_ADJUST_FACTOR		(double)(0.9)
+
+    #define STATETK_ULTRASONIC_FIXEDSIDE_DISTANCE   (400)//(390)//(420)//(430)     //sensor width between center
+    #define STK_HANDSET_HEIGHT    	(950.0)
+    #define STK_SENSOR_HEIGHT    	(240.0)
+
+    //define for tape trace
+    #define MOTOR_SHAFT_TO_FW_PANEL_DIST (450)//un:mm
+    #define FW_PANNEL_TO_IMAGE_DIST		 (350)//un:mm
+    //#define MOTOR_SHAFT_TO_BW_PANEL_DIST (610)//un:mm
+    //pix 640*480(驴铆*鲁陇)->(MOTOR_MOTOR_DIST + 370) * 1000,un:mm
+
+    //#define MOTOR_SHAFT_TO_BW_PANEL_DIST (610)//un:mm
+    //pix 640*480(脗驴脙颅*脗鲁脗陇)->(MOTOR_MOTOR_DIST + 370) * 1000,un:mm
+    #define FW_DIST_PER_PIX_XAXIS			(double)(3.084337349397591)	//640/(MOTOR_MOTOR_DIST + 370)*4
+    #define FW_DIST_PER_PIX_YAXIS			(double)(2.083333333333334)//1000/480
+
+    #define BW_DIST_PER_PIX_XAXIS			(double)(2.313253012048193)	//480/(MOTOR_MOTOR_DIST + 370)*4
+    #define BW_DIST_PER_PIX_YAXIS			(double)(1.5625)//1000/640
+
+    //1111.333333333334   990.5   819.666666666667   569.666666666667   411.333333333333   390.5   211.333333333333
+    //2013.333333333334   1892.500000000000   1721.666666666667   1471.666666666667   1313.333333333334   1292.500000000000   1113.333333333333
+    #define FW_Y_AXIS0					(double)(1733.333333333333)	//((MAX_FW_Y - 32)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)//脙鈥澝偮睹偮睹冣??
+    #define FW_Y_AXIS1					(double)(1612.5)			//((MAX_FW_Y - 90)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+    #define FW_Y_AXIS2					(double)(1441.666666666667)	//((MAX_FW_Y - 172)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+    #define FW_Y_AXIS3					(double)(1191.666666666667)	//((MAX_FW_Y - 292)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+    #define FW_Y_AXIS4					(double)(1033.333333333333)	//((MAX_FW_Y - 368)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+    #define FW_Y_AXIS5					(double)(1012.500000000000)				//((MAX_FW_Y - 378)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+    #define FW_Y_AXIS6					(double)(833.333333333333)	//((MAX_FW_Y - 464)*FW_DIST_PER_PIX_YAXIS + FW_PANNEL_TO_IMAGE_DIST + MOTOR_SHAFT_TO_FW_PANEL_DIST)
+
+    //1810.578313253012   1560.746987951807   1190.626506024096   952.361445783132   922.289156626506   656.265060240964
+    //#define BW_Y_AXIS1					(double)(1810.578313253012)
+    //#define BW_Y_AXIS2					(double)(1560.746987951807)
+    //#define BW_Y_AXIS3					(double)(1190.626506024096)
+    //#define BW_Y_AXIS4					(double)(952.361445783132)			//((MAX_BW_Y - 368)*BW_DIST_PER_PIX_XAXIS + MOTOR_SHAFT_TO_BW_PANEL_DIST)
+    //#define BW_Y_AXIS5					(double)(922.289156626506)			//((MAX_BW_Y - 378)*BW_DIST_PER_PIX_XAXIS + MOTOR_SHAFT_TO_BW_PANEL_DIST)
+    //#define BW_Y_AXIS6					(double)(656.265060240964)			//((MAX_BW_Y - 464)*BW_DIST_PER_PIX_XAXIS + MOTOR_SHAFT_TO_BW_PANEL_DIST)
+
+
+    #define Y_AXIS7						(double)(0)					// MOTOR_SHAFT
 #endif
 
 //Rx information Order
@@ -384,7 +436,9 @@ typedef enum
     STATE_OA = 4,//VTK
     STATE_VTK = 4,//VTK
     STATE_MARCH = 5,//added@141205 by yivi
+    STATE_CAMERACALI_AUTO = 5,
     STATE_VTP = 6,
+    STATE_CAMERACALI_MANUAL = 6,
     STATE_POWERON=7,
     STATE_IDLE=8,
     STATE_MOTOR_RELEASE = 9,
@@ -568,6 +622,7 @@ typedef struct _VTPInfo_t
     uint8_t CtlByte;
     int8_t StationName;
     uint16_t ToStationDist;
+    bool    GotMarkFlag;
     uint16_t MaxSpeed;
     uint16_t PauseTime;
     SpeedCtl_e SpeedCtl;

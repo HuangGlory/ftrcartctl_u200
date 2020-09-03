@@ -2,6 +2,7 @@
 #include <QtMath>
 #include <QFile>
 
+
 imu::imu(QObject *parent) : QObject(parent)
 {
     this->dt            = new QTime;
@@ -9,6 +10,9 @@ imu::imu(QObject *parent) : QObject(parent)
     this->pose.yaw      = 0;
     this->pose.pitch    = 0;
     this->pose.roll     = 0;
+
+    this->pitchKalman   = new Kalman(0.0007,0.005,0);
+    this->rollKalman   = new Kalman(0.0007,0.005,0);
 
     this->imuDeviceInit();
 
@@ -148,9 +152,9 @@ void imu::Time2ReadDataSlot()
 
         this->pose.norm = sqrt(this->RawData.acc.x*this->RawData.acc.x + this->RawData.acc.y*this->RawData.acc.y + this->RawData.acc.z*this->RawData.acc.z);
 
-        this->pose.roll = (qint16)(atan2(this->RawData.acc.x,this->RawData.acc.z)*57.3) - this->BoardRoll;
-        this->pose.pitch  = (qint16)(atan2(this->RawData.acc.y,this->RawData.acc.z)*57.3) - this->BoardPitch;
-        //qDebug()<<norm<<this->pose.pitch<<this->pose.roll<<this->pose.yaw;
+        this->pose.roll = -(qint16)(this->rollKalman->KalmanCalc((atan2(this->RawData.acc.x,this->RawData.acc.z)*57.3) - this->BoardRoll));
+        this->pose.pitch= (qint16)(this->pitchKalman->KalmanCalc((atan2(this->RawData.acc.y,this->RawData.acc.z)*57.3) - this->BoardPitch));
+        //qDebug()<<this->pose.norm<<this->pose.pitch<<this->pose.roll<<this->pose.yaw;
 
         this->UpdateInfo();
     }
@@ -219,6 +223,7 @@ void    imu::CalcBias(void)
     this->Bias.gyro.z = 0;
 
     this->Cnt4BiaseCalc = 0;
+    //qDebug()<<"CalcBias:";
 }
 
 void    imu::UpdateInfo(void)

@@ -61,6 +61,14 @@ void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
     {
         state = "3";
     }
+    else if(cartState == STATE_CAMERACALI_AUTO)
+    {
+        state = "5";
+    }
+    else if(cartState == STATE_CAMERACALI_MANUAL)
+    {
+        state = "6";
+    }
     this->MainInputPipeFile->write(state.toUtf8());
     this->MainInputPipeFile->flush();
     //qDebug()<<"WriteMainPipeSlot"<<cartState<<state.toUtf8();
@@ -121,6 +129,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     }
 
 #if(PLATFORM == PLATFORM_U250)
+    //speed up&down
     if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) && (this->StartActionFlag || this->InArcTurningFlag))
     {
         this->VTPInfo.SpeedCtl = SPEED_CTL_NULL;
@@ -131,22 +140,80 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         this->VTPInfo.SpeedCtl = VTPInfo.SpeedCtl;
     }
 
-    /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
-    {
+    #if(NUM_STATION_USED)
+        /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
+        {
 
-    }
-    else*/
-    //if(VTPInfo.StationName != -1)
-    //if(this->VTPInfo.ToStationDist != VTPInfo.ToStationDist)
-    //don't catch the station mark in action or arc turning
-    if(VTPInfo.StationName != this->VTPInfo.StationName)
-    {        
-        if((!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState))
+        }
+        else*/
+        //if(VTPInfo.StationName != -1)
+        //if(this->VTPInfo.ToStationDist != VTPInfo.ToStationDist)
+        //don't catch the station mark in action or arc turning
+        if(VTPInfo.StationName != this->VTPInfo.StationName)
+        {
+            if((!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState))
+            {
+                this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
+                if((this->SocketReadyFlag) && (this->VTPInfo.StationName != VTPInfo.StationName))
+                {
+                    QString StationNameStr = "Station:"+QString::number(VTPInfo.StationName) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
+                    this->tcpSocketSendMessageSlot(StationNameStr);
+                    qDebug()<<StationNameStr;
+                }
+                else
+                {
+                    this->VTPInfo.StationName = VTPInfo.StationName;
+                    //qDebug()<<"Station:"<<VTPInfo.StationName;
+                }
+            }
+            else
+            {
+                qDebug()<<"GotStationNameInTurning:"<<VTPInfo.StationName;
+            }
+        }
+    #elif(0)
+        if((VTPInfo.StationName == 1) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        {
+            this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+
+            if(this->FaceDirFlag)//forward
+            {
+                this->StationName4VTP++;
+            }
+            else
+            {
+                this->StationName4VTP--;
+            }
+
+            if((!this->StartActionFlag) && (!this->InArcTurningFlag))
+            {
+                this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
+                if((this->SocketReadyFlag) && (this->VTPInfo.StationName != VTPInfo.StationName))
+                {
+                    QString StationNameStr = "Station:"+QString::number(this->StationName4VTP) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
+                    this->tcpSocketSendMessageSlot(StationNameStr);
+                    qDebug()<<StationNameStr;
+                }
+                else
+                {
+                    this->VTPInfo.StationName = this->StationName4VTP;
+                    //qDebug()<<"Station:"<<VTPInfo.StationName;
+                }
+            }
+            else
+            {
+                qDebug()<<"GotStationNameInTurning:"<<this->StationName4VTP;
+            }
+            qDebug()<<"StationN:"<<this->StationName4VTP<<this->FaceDirFlag;
+        }
+    #else
+        //Got the mark in speed down and no in arc turning
+        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState))
         {
             this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
-            if((this->SocketReadyFlag) && (this->VTPInfo.StationName != VTPInfo.StationName))
+            if(this->SocketReadyFlag)
             {
-                QString StationNameStr = "Station:"+QString::number(VTPInfo.StationName) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
+                QString StationNameStr = "Station:"+QString::number(VTPInfo.GotMarkFlag) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
                 this->tcpSocketSendMessageSlot(StationNameStr);
                 qDebug()<<StationNameStr;
             }
@@ -160,7 +227,8 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         {
             qDebug()<<"GotStationNameInTurning:"<<VTPInfo.StationName;
         }
-    }
+
+    #endif
 
 #endif
     this->VTP_RealTimeInfo();
@@ -170,12 +238,46 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
 void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
 {
     qDebug()<<"InPipe:"<<str;
+    if(str.contains("WheelCali:"))
+    {
+        str = str.replace("WheelCali:","");
+        str = str.replace("\n","");
+        QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+
+        if(RxMessageList.size() == 2)
+        {
+            bool convertResult = false;
+            int converValue = RxMessageList.at(0).toInt(&convertResult);
+            if(convertResult)
+            {
+                if(converValue)//need odo cali
+                {
+                    this->NeedIntoODOCaliFlag = true;
+                    converValue = RxMessageList.at(1).toInt(&convertResult);
+                    if(convertResult) this->WheelCaliDist = converValue;
+                }
+                else
+                {
+                    WriteWheelDiamToBaseJsonSlot();
+                    this->NeedOutODOCaliFlag = true;
+                    this->WheelCaliDist = 0;
+                }
+            }
+        }
+    }
+    #if(PLATFORM == PLATFORM_R3)
+    else if(str.contains("AccGyroCali:"))
+    {
+        //qDebug()<<"toCaliBias:";
+        this->imuData->CalcBias();
+    }
+    #endif
 }
 
 #if(PLATFORM == PLATFORM_R3)
 void FTR_CTR3SpeedCtl::UpdateIMUInfoSlot(Pose_t pose)
 {
-    //qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
+    qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
     this->pose.norm = pose.norm;
     this->pose.pitch= pose.pitch;
     this->pose.roll = pose.roll;

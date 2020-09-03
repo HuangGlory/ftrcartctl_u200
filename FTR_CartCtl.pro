@@ -4,8 +4,8 @@ QT += serialport network
 CONFIG += c++11 console
 CONFIG -= app_bundle
 
-#TARGET = ftrCartCtl_V0.0.2.10.R3@20200702
-TARGET = ftrCartCtl_V0.0.3.04.U200@20200826
+#TARGET = ftrCartCtl_V0.0.3.05.R3@20200902
+TARGET = ftrCartCtl_V0.0.3.05.U200@20200902
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -29,6 +29,8 @@ SOURCES += \
     clearpipe_thread.cpp \
     ftr_ctr3speedctl.cpp \
     imu.cpp \
+    kalman.cpp \
+    licensecheck.cpp \
     main.cpp \
     motorctrlinfo.cpp \
     rc_thread.cpp \
@@ -51,6 +53,8 @@ HEADERS += \
     clearpipe_thread.h \
     ftr_ctr3speedctl.h \
     imu.h \
+    kalman.h \
+    licensecheck.h \
     motorctrlinfo.h \
     rc_thread.h \
     readinputpipe_thread.h \

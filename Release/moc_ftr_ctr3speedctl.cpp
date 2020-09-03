@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_FTR_CTR3SpeedCtl_t {
-    QByteArrayData data[43];
-    char stringdata0[626];
+    QByteArrayData data[44];
+    char stringdata0[655];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -62,19 +62,20 @@ QT_MOC_LITERAL(26, 346, 19), // "UpdatePipeInputSlot"
 QT_MOC_LITERAL(27, 366, 19), // "PNGButtonToggleSlot"
 QT_MOC_LITERAL(28, 386, 19), // "SettingOAToggleSlot"
 QT_MOC_LITERAL(29, 406, 27), // "SettingOAGlobalBaseJsonSlot"
-QT_MOC_LITERAL(30, 434, 15), // "CalcArcInfoSlot"
-QT_MOC_LITERAL(31, 450, 9), // "ArcInfo_t"
-QT_MOC_LITERAL(32, 460, 11), // "PointAxis_t"
-QT_MOC_LITERAL(33, 472, 2), // "p1"
-QT_MOC_LITERAL(34, 475, 2), // "p2"
-QT_MOC_LITERAL(35, 478, 2), // "p3"
-QT_MOC_LITERAL(36, 481, 23), // "tcpServerConnectionSlot"
-QT_MOC_LITERAL(37, 505, 17), // "tcpSocketReadSlot"
-QT_MOC_LITERAL(38, 523, 24), // "tcpSocketSendMessageSlot"
-QT_MOC_LITERAL(39, 548, 7), // "message"
-QT_MOC_LITERAL(40, 556, 23), // "tcpSocketDisconnectSlot"
-QT_MOC_LITERAL(41, 580, 28), // "lowPowerToShutDownSystemSlot"
-QT_MOC_LITERAL(42, 609, 16) // "calcCapacitySlot"
+QT_MOC_LITERAL(30, 434, 28), // "WriteWheelDiamToBaseJsonSlot"
+QT_MOC_LITERAL(31, 463, 15), // "CalcArcInfoSlot"
+QT_MOC_LITERAL(32, 479, 9), // "ArcInfo_t"
+QT_MOC_LITERAL(33, 489, 11), // "PointAxis_t"
+QT_MOC_LITERAL(34, 501, 2), // "p1"
+QT_MOC_LITERAL(35, 504, 2), // "p2"
+QT_MOC_LITERAL(36, 507, 2), // "p3"
+QT_MOC_LITERAL(37, 510, 23), // "tcpServerConnectionSlot"
+QT_MOC_LITERAL(38, 534, 17), // "tcpSocketReadSlot"
+QT_MOC_LITERAL(39, 552, 24), // "tcpSocketSendMessageSlot"
+QT_MOC_LITERAL(40, 577, 7), // "message"
+QT_MOC_LITERAL(41, 585, 23), // "tcpSocketDisconnectSlot"
+QT_MOC_LITERAL(42, 609, 28), // "lowPowerToShutDownSystemSlot"
+QT_MOC_LITERAL(43, 638, 16) // "calcCapacitySlot"
 
     },
     "FTR_CTR3SpeedCtl\0toCalcCapacitySignal\0"
@@ -88,11 +89,12 @@ QT_MOC_LITERAL(42, 609, 16) // "calcCapacitySlot"
     "VTKInfo_t\0VTKInfo\0UpdateVTPInfoSlot\0"
     "VTPInfo_t\0VTPInfo\0UpdatePipeInputSlot\0"
     "PNGButtonToggleSlot\0SettingOAToggleSlot\0"
-    "SettingOAGlobalBaseJsonSlot\0CalcArcInfoSlot\0"
-    "ArcInfo_t\0PointAxis_t\0p1\0p2\0p3\0"
-    "tcpServerConnectionSlot\0tcpSocketReadSlot\0"
-    "tcpSocketSendMessageSlot\0message\0"
-    "tcpSocketDisconnectSlot\0"
+    "SettingOAGlobalBaseJsonSlot\0"
+    "WriteWheelDiamToBaseJsonSlot\0"
+    "CalcArcInfoSlot\0ArcInfo_t\0PointAxis_t\0"
+    "p1\0p2\0p3\0tcpServerConnectionSlot\0"
+    "tcpSocketReadSlot\0tcpSocketSendMessageSlot\0"
+    "message\0tcpSocketDisconnectSlot\0"
     "lowPowerToShutDownSystemSlot\0"
     "calcCapacitySlot"
 };
@@ -104,7 +106,7 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      24,   14, // methods
+      25,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -112,32 +114,33 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    1,  134,    2, 0x06 /* Public */,
+       1,    1,  139,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       4,    0,  137,    2, 0x0a /* Public */,
-       5,    0,  138,    2, 0x0a /* Public */,
-       6,    0,  139,    2, 0x0a /* Public */,
-       7,    0,  140,    2, 0x0a /* Public */,
-       8,    0,  141,    2, 0x0a /* Public */,
-       9,    1,  142,    2, 0x0a /* Public */,
-      11,    1,  145,    2, 0x0a /* Public */,
-      14,    1,  148,    2, 0x0a /* Public */,
-      16,    1,  151,    2, 0x0a /* Public */,
-      18,    1,  154,    2, 0x0a /* Public */,
-      20,    1,  157,    2, 0x0a /* Public */,
-      23,    1,  160,    2, 0x0a /* Public */,
-      26,    1,  163,    2, 0x0a /* Public */,
-      27,    0,  166,    2, 0x0a /* Public */,
-      28,    1,  167,    2, 0x0a /* Public */,
-      29,    0,  170,    2, 0x0a /* Public */,
-      30,    3,  171,    2, 0x0a /* Public */,
-      36,    0,  178,    2, 0x0a /* Public */,
-      37,    0,  179,    2, 0x0a /* Public */,
-      38,    1,  180,    2, 0x0a /* Public */,
-      40,    0,  183,    2, 0x0a /* Public */,
-      41,    0,  184,    2, 0x0a /* Public */,
-      42,    1,  185,    2, 0x0a /* Public */,
+       4,    0,  142,    2, 0x0a /* Public */,
+       5,    0,  143,    2, 0x0a /* Public */,
+       6,    0,  144,    2, 0x0a /* Public */,
+       7,    0,  145,    2, 0x0a /* Public */,
+       8,    0,  146,    2, 0x0a /* Public */,
+       9,    1,  147,    2, 0x0a /* Public */,
+      11,    1,  150,    2, 0x0a /* Public */,
+      14,    1,  153,    2, 0x0a /* Public */,
+      16,    1,  156,    2, 0x0a /* Public */,
+      18,    1,  159,    2, 0x0a /* Public */,
+      20,    1,  162,    2, 0x0a /* Public */,
+      23,    1,  165,    2, 0x0a /* Public */,
+      26,    1,  168,    2, 0x0a /* Public */,
+      27,    0,  171,    2, 0x0a /* Public */,
+      28,    1,  172,    2, 0x0a /* Public */,
+      29,    0,  175,    2, 0x0a /* Public */,
+      30,    0,  176,    2, 0x0a /* Public */,
+      31,    3,  177,    2, 0x0a /* Public */,
+      37,    0,  184,    2, 0x0a /* Public */,
+      38,    0,  185,    2, 0x0a /* Public */,
+      39,    1,  186,    2, 0x0a /* Public */,
+      41,    0,  189,    2, 0x0a /* Public */,
+      42,    0,  190,    2, 0x0a /* Public */,
+      43,    1,  191,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::Double,    3,
@@ -159,10 +162,11 @@ static const uint qt_meta_data_FTR_CTR3SpeedCtl[] = {
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 12,   15,
     QMetaType::Bool,
-    0x80000000 | 31, 0x80000000 | 32, 0x80000000 | 32, 0x80000000 | 32,   33,   34,   35,
+    QMetaType::Bool,
+    0x80000000 | 32, 0x80000000 | 33, 0x80000000 | 33, 0x80000000 | 33,   34,   35,   36,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::QString,   39,
+    QMetaType::Void, QMetaType::QString,   40,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, QMetaType::Double,    3,
@@ -194,14 +198,16 @@ void FTR_CTR3SpeedCtl::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 15: _t->SettingOAToggleSlot((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
         case 16: { bool _r = _t->SettingOAGlobalBaseJsonSlot();
             if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
-        case 17: { ArcInfo_t _r = _t->CalcArcInfoSlot((*reinterpret_cast< PointAxis_t(*)>(_a[1])),(*reinterpret_cast< PointAxis_t(*)>(_a[2])),(*reinterpret_cast< PointAxis_t(*)>(_a[3])));
+        case 17: { bool _r = _t->WriteWheelDiamToBaseJsonSlot();
+            if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
+        case 18: { ArcInfo_t _r = _t->CalcArcInfoSlot((*reinterpret_cast< PointAxis_t(*)>(_a[1])),(*reinterpret_cast< PointAxis_t(*)>(_a[2])),(*reinterpret_cast< PointAxis_t(*)>(_a[3])));
             if (_a[0]) *reinterpret_cast< ArcInfo_t*>(_a[0]) = std::move(_r); }  break;
-        case 18: _t->tcpServerConnectionSlot(); break;
-        case 19: _t->tcpSocketReadSlot(); break;
-        case 20: _t->tcpSocketSendMessageSlot((*reinterpret_cast< QString(*)>(_a[1]))); break;
-        case 21: _t->tcpSocketDisconnectSlot(); break;
-        case 22: _t->lowPowerToShutDownSystemSlot(); break;
-        case 23: _t->calcCapacitySlot((*reinterpret_cast< double(*)>(_a[1]))); break;
+        case 19: _t->tcpServerConnectionSlot(); break;
+        case 20: _t->tcpSocketReadSlot(); break;
+        case 21: _t->tcpSocketSendMessageSlot((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 22: _t->tcpSocketDisconnectSlot(); break;
+        case 23: _t->lowPowerToShutDownSystemSlot(); break;
+        case 24: _t->calcCapacitySlot((*reinterpret_cast< double(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -245,13 +251,13 @@ int FTR_CTR3SpeedCtl::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 24)
+        if (_id < 25)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 24;
+        _id -= 25;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 24)
+        if (_id < 25)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 24;
+        _id -= 25;
     }
     return _id;
 }

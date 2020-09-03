@@ -51,9 +51,13 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.3.04.U200@20200826\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.3.05.U200@20200902\n\n")
 /***********************
  * log:
+ * Ver:0.0.3.05.U200@20200829
+ * 1.使用MAC加密，暂时不用
+ * 2.修改直径校正
+ *
  * Ver:0.0.3.04.U200@20200826
  * 1.added default action on mark
  *
@@ -163,9 +167,12 @@ using namespace std;
  * 初版本
  * ********************/
 #else
-#define VERSION                         tr("ftrCartCtl Ver:0.0.2.9.R3@20200629\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.3.04.R3@20200828\n\n")
 /***********************
  * log:
+ * Ver:0.0.3.04.R3@20200828
+ * 1.大部分功能与U200一致
+ *
  * Ver:0.0.2.9.R3@20200629
  * 1.added imu
  * 2.解决有时候handset按键没响应问题；
@@ -305,6 +312,9 @@ public slots:
     void SettingOAToggleSlot(CartState_e cartState);
     bool SettingOAGlobalBaseJsonSlot(void);
 
+    //set wheel diam
+    bool WriteWheelDiamToBaseJsonSlot(void);
+
     ArcInfo_t CalcArcInfoSlot(PointAxis_t p1,PointAxis_t p2,PointAxis_t p3);
 
 #if(BLUETOOTH_SERIAL_USED)
@@ -398,8 +408,13 @@ private:
     bool            GlobaOAStateFlag;
 
     bool            NeedIntoODOCaliFlag;
+    bool            NeedOutODOCaliFlag;
     bool            InODOCaliFlag;
 
+    quint16         WheelCaliDist;
+    quint16         EncoderCnt;
+    double          LeftWheelDiam;
+    double          RightWheelDiam;
     quint8          cnt4IntoConfigModePNGToggle;
     quint8          RecoverOATimeout;
     int16_t         LeftSettingSpeed;
@@ -458,6 +473,13 @@ private:
     QTcpSocket *tcpSocket; //定义通信套接字tcpSocket
 
     BatCapacityInfo_t batCapacityInfo;
+
+    //qint32          ODOMark4VTPStationCalc;
+    //quint8          StationName4VTP;
+    //bool            FaceDirFlag;
+
+    quint8          stationsNum;
+    quint16         distBtStation;
 };
 
 #endif // FTR_CTR3SPEEDCTL_H

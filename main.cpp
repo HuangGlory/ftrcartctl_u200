@@ -2,6 +2,7 @@
 #include "ftr_ctr3speedctl.h"
 #include <sys/types.h>//mkfifo
 #include <sys/stat.h>//mkfifo
+#include <licensecheck.h>
 
 #if(0)
 #include <QMutex>
@@ -83,6 +84,16 @@ std::string -> char *        string.date();
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+#if(LICENSE_USED)
+    LicenseCheck *licCheck = new LicenseCheck;
+    qDebug()<<"licensed:"<<licCheck->CheckLicenseResult();
+    if(!licCheck->CheckLicenseResult())
+    {
+       return a.exec();
+    }
+
+    delete licCheck;
+#endif
 
     umask(0);
     int result = mkfifo(FTRCARTCTL_IN_PIPE_NAME,0777);

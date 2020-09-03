@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <QTime>
 #include <PlatformParameter.h>
+#include <kalman.h>
 
 typedef struct {
     union {
@@ -70,7 +71,7 @@ typedef enum {
 #define	PWR_MGMT_1		0x6B	//电源管理，典型值：0x00(正常启用)
 #define	WHO_AM_I		0x75	//IIC地址寄存器(默认数值0x68，只读)
 
-#define	SLAVE_ADDRESS	(0x68)
+#define	SLAVE_ADDRESS	(0x69)//(0x68)
 
 
 class imu : public QObject
@@ -111,6 +112,9 @@ private:
     Pose_t          pose;
 
     bool            CalcBiasFlag;
+
+    Kalman          *pitchKalman;
+    Kalman          *rollKalman;
 };
 
 #endif // IMU_H
