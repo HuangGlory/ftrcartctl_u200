@@ -8,8 +8,7 @@
 #define RC_REDIRECT						(0)
 #define SERIAL_BYPASS                   (1)
 #define BLUETOOTH_SERIAL_USED           (0)
-#define LICENSE_USED                    (0)
-#define NUM_STATION_USED                (1)
+#define NUM_STATION_USED                (0)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -25,8 +24,14 @@
 #define PLATFORM                        (PLATFORM_U250)
 
 #if(PLATFORM == PLATFORM_U250)
+    #define LICENSE_USED            (0)
+
     #define BAT_MAX_VOLTAGE         (43.0)
     #define BAT_MIN_VOLTAGE         (34.0)
+    #define BAT_CAPACITY            (double)(8.8)
+    #define LEFT_WHEEL_DIAM         (double)(169.0)
+    #define RIGHT_WHEEL_DIAM        (double)(169.0)
+    #define ENCODER_CNT             (quint16)(3520)
     #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
 
 
@@ -73,8 +78,14 @@
     #define Y_AXIS7						(double)(0)					// MOTOR_SHAFT
 
 #else
+    #define LICENSE_USED            (1)
+
     #define BAT_MAX_VOLTAGE         (30.0)
     #define BAT_MIN_VOLTAGE         (23.0)
+    #define BAT_CAPACITY            (double)(8.8)
+    #define LEFT_WHEEL_DIAM         (double)(169.0)
+    #define RIGHT_WHEEL_DIAM        (double)(169.0)
+    #define ENCODER_CNT             (quint16)(3520)
     #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
 
 
@@ -207,24 +218,25 @@ typedef enum
 #define MAX_SPEED_4VTP                      (quint16)(500)//3kmph
 #define DEFAULT_ACTION                      (ACTION_UTURN_GO)
 
-#define FunctionJoystickUsedBit                    	(uint16_t)(0x0001)//BIT(0)
-#define ObstBeDetectedBy2DBit                  		(uint16_t)(0x0002)//BIT(1)
-#define ObstBeDetectedByUSBit                      	(uint16_t)(0x0004)//BIT(2)
-#define OAEnableStateBit							(uint16_t)(0x0008)//BIT(3)
-#define HSEnableStateBit							(uint16_t)(0x0010)//BIT(4)
-#define CartStateStopOrNGoBit						(uint16_t)(0x0020)//BIT(5)
-#define GotPauseButtonBit						    (uint16_t)(0x0040)//BIT(6)
-#define MotorReleaseStateBit						(uint16_t)(0x0080)//BIT(7)
+#define FunctionJoystickUsedBit                    	(uint32_t)(0x0001)//BIT(0)
+#define ObstBeDetectedBy2DBit                  		(uint32_t)(0x0002)//BIT(1)
+#define ObstBeDetectedByUSBit                      	(uint32_t)(0x0004)//BIT(2)
+#define OAEnableStateBit							(uint32_t)(0x0008)//BIT(3)
+#define HSEnableStateBit							(uint32_t)(0x0010)//BIT(4)
+#define CartStateStopOrNGoBit						(uint32_t)(0x0020)//BIT(5)
+#define GotPauseButtonBit						    (uint32_t)(0x0040)//BIT(6)
+#define MotorReleaseStateBit						(uint32_t)(0x0080)//BIT(7)
 
-#define TKInIdleStateBit                            (uint16_t)(0x0100)//BIT(8)
-#define HSBeUsedBit                                 (uint16_t)(0x0200)//BIT(9)
-#define SpeedUpAndDownBit                           (uint16_t)(0x0400)//BIT(10)
-#define StartActionBit                              (uint16_t)(0x0800)//BIT(11)
-#define ClearYawBit                                 (uint16_t)(0x1000)//BIT(12)
-#define InPauseStateBit                             (uint16_t)(0x2000)//BIT(13)
-#define InArcTurningBit                             (uint16_t)(0x4000)//BIT(14)
-#define InODOCaliStateBit                           (uint16_t)(0x8000)//BIT(15)
+#define TKInIdleStateBit                            (uint32_t)(0x0100)//BIT(8)
+#define HSBeUsedBit                                 (uint32_t)(0x0200)//BIT(9)
+#define SpeedUpAndDownBit                           (uint32_t)(0x0400)//BIT(10)
+#define StartActionBit                              (uint32_t)(0x0800)//BIT(11)
+#define ClearYawBit                                 (uint32_t)(0x1000)//BIT(12)
+#define InPauseStateBit                             (uint32_t)(0x2000)//BIT(13)
+#define InArcTurningBit                             (uint32_t)(0x4000)//BIT(14)
+#define InODOCaliStateBit                           (uint32_t)(0x8000)//BIT(15)
 
+#define LostTapeTurningBit                          (uint32_t)(0x10000)//BIT(16)
 typedef struct{
     double norm;
     qint16 pitch;
@@ -568,7 +580,7 @@ typedef struct _RxInfo_t
 
     bool    PauseNGoState;//MotorReleaseState;
     //bool    VTKInIdleState;
-    uint16_t MultiFunction;
+    uint32_t MultiFunction;
 
     uint16_t TOFMinDist;
     uint16_t USMinDist;

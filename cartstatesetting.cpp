@@ -68,7 +68,7 @@ void CartStateSetting::emitKeyISRSignal()
 void CartStateSetting::KeyISRSlot(void)
 {
     //qDebug()<<"KeyISRSLot";
-    QThread::msleep(15);
+    QThread::msleep(50);//15
 #if(PLATFORM == PLATFORM_U250)
     if(this->BSP_GetKeyValue(PNG_KEY))//HIGH
     {

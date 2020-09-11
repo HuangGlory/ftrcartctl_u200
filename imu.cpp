@@ -11,8 +11,8 @@ imu::imu(QObject *parent) : QObject(parent)
     this->pose.pitch    = 0;
     this->pose.roll     = 0;
 
-    this->pitchKalman   = new Kalman(0.0007,0.005,0);
-    this->rollKalman   = new Kalman(0.0007,0.005,0);
+    this->pitchKalman   = new Kalman(0.00007,0.005,0);
+    this->rollKalman   = new Kalman(0.00007,0.005,0);
 
     this->imuDeviceInit();
 

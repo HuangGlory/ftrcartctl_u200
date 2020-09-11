@@ -117,7 +117,7 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     ByteArray[27]=this->App_XOR(ByteArray);
 
     //qDebug()<<"TxCB:"<<this->VTPInfo.CtlByte<<this->VTPInfo.StationName;
-//    qDebug("CtlByte:0x%x",this->VTPInfo.CtlByte);
+    //qDebug("CtlByte:0x%x",this->VTPInfo.CtlByte);
 #elif(SERIAL_TYPE == SERIAL_TYPE_TTL)
     ByteArray[0]=SOP_TTL;
     ByteArray[1]=cmd;

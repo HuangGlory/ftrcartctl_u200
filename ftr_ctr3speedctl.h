@@ -38,6 +38,7 @@ using namespace std;
 //Json
 #define JSON_FILE_NAME      tr("/home/pi/vision/data/config.json")
 #define SETTING_JSON_FILE_NAME tr("/home/pi/ftrCartCtl/settings.json")
+#define SETTING_WHEEL_DIAM_JSON_FILE_NAME tr("/home/pi/ftrCartCtl/setting_d.json")
 
 #define MAIN_INPUT_DEFAULT_PIPE_NAME    tr("/tmp/vision_pipe_input")
 #define VTK_OUTPUT_DEFAULT_PIPE_NAME    tr("/tmp/person_pipe_output")
@@ -51,9 +52,19 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.3.05.U200@20200902\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.4.01.U200@20200909\n\n")
 /***********************
  * log:
+ * Ver:0.0.4.01.U200@20200909
+ * 1.增加report从phone来的信息
+ * 2.增加按键消抖时间，15->50
+ *
+ * Ver:0.0.4.00.U200@20200908
+ * 1.使用10*10做站点
+ * 2.增加没线转弯上报信息
+ * 3.SB_Enter时增加发送电机直径
+ * 4.电机直径独立一个json文件
+ *
  * Ver:0.0.3.05.U200@20200829
  * 1.使用MAC加密，暂时不用
  * 2.修改直径校正
@@ -167,9 +178,15 @@ using namespace std;
  * 初版本
  * ********************/
 #else
-#define VERSION                         tr("ftrCartCtl Ver:0.0.3.04.R3@20200828\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.4.00.R3@20200907\n\n")
 /***********************
  * log:
+ * Ver:0.0.4.00.R3@20200907
+ * 1.与U200同步
+ * 2.VTP加一个字节，调整pose位置
+ * 3.使能licese功能
+ * 4.SB_Enter时增加发送电机直径
+ *
  * Ver:0.0.3.04.R3@20200828
  * 1.大部分功能与U200一致
  *
@@ -353,9 +370,9 @@ private:
 private:
     QSharedDataPointer<FTR_CTR3SpeedCtlData> data;
 
-    SB_Thread       *SBProcess;
-    RC_Thread       *RCProcess;
-    VTK_Thread      *VTKProcess;
+    //SB_Thread       *SBProcess;
+    //RC_Thread       *RCProcess;
+    //VTK_Thread      *VTKProcess;
 
     //Pipe thread
     ReadVTKPipe_Thread *ReadVTKPipeProcess;
@@ -393,6 +410,7 @@ private:
     bool            SpeedUpAndDownState;
     bool            StartActionFlag;
     bool            InArcTurningFlag;
+    bool            InLostTapeTurningFlag;
     bool            InPauseStateFlag;
     bool            GetVersionOfEBoxFlag;
     bool            Wait4CameraReadyIndecateFlag;
@@ -410,6 +428,8 @@ private:
     bool            NeedIntoODOCaliFlag;
     bool            NeedOutODOCaliFlag;
     bool            InODOCaliFlag;
+
+    bool            SettingJsonErrorFlag;
 
     quint16         WheelCaliDist;
     quint16         EncoderCnt;
@@ -474,7 +494,8 @@ private:
 
     BatCapacityInfo_t batCapacityInfo;
 
-    //qint32          ODOMark4VTPStationCalc;
+    qint32          ODOMark4VTPStationCalc;
+    quint16         MarkCntRecord;
     //quint8          StationName4VTP;
     //bool            FaceDirFlag;
 

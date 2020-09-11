@@ -2,9 +2,7 @@
 
 void FTR_CTR3SpeedCtl::RC_Enter()//CMD = 0xF0
 {
-    //this->SendCMD(CMD_BLUETOOTH_HEAD,this->CartState,CMD_HANDSET_STATECHANGE_RC,this->SettingParameterFromJson.RCCtlByte.CtlByte);
     this->SendCMD(CMD_SET_OA_FUNCTION,(0xC0 & this->SettingParameterFromJson.RCCtlByte.CtlByte));
-    //qDebug("OAS:0x%x",this->SettingParameterFromJson.RCCtlByte.CtlByte);
 }
 
 void FTR_CTR3SpeedCtl::RC_RealTimeInfo()//CMD = 0x93

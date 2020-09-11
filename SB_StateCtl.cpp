@@ -2,7 +2,35 @@
 
 void FTR_CTR3SpeedCtl::SB_Enter()//CMD = 0x12
 {
-    this->SendCMD(CMD_USER_ENTER_SB);
+//    this->SendCMD(CMD_USER_ENTER_SB);
+#if(1)
+    QByteArray  ByteArray;
+
+    ByteArray[0]=SOP_USB;
+    ByteArray[1]=CMD_USER_ENTER_SB;
+    ByteArray[2]=0x00;
+    ByteArray[3]=0x08;
+
+    //diam
+    quint32 LeftDiam = (quint32)(this->LeftWheelDiam*1000);
+    quint32 RightDiam = (quint32)(this->RightWheelDiam*1000);
+    ByteArray[4]=(LeftDiam >> 24) & 0xFF;
+    ByteArray[5]=(LeftDiam >> 16) & 0xFF;
+    ByteArray[6]=(LeftDiam >> 8) & 0xFF;
+    ByteArray[7]=(LeftDiam & 0xFF);
+
+    ByteArray[8]=(RightDiam >> 24) & 0xFF;
+    ByteArray[9]=(RightDiam >> 16) & 0xFF;
+    ByteArray[10]=(RightDiam >> 8) & 0xFF;
+    ByteArray[11]=(RightDiam & 0xFF);
+
+    ByteArray[12]=this->App_XOR(ByteArray);
+
+    this->AppUART->write(ByteArray);
+    this->AppUART->flush();
+
+    if(this->ShowLogFlag.ShowMixLogFlag) qDebug()<<"TX:"<<ByteArray.toHex();
+#endif
 
     this->VTKInfo.VTKDist = 0;
     this->VTKInfo.VTKAngle= 0;

@@ -111,9 +111,9 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     if(this->ShowLogFlag.vtpRtLogFlag)
     {
     #if(1)
-        QString str = QString("7P:(%1,%2,%3,%4,%5,%6,%7);VCtl:(%8);SI:(%9,%10)").arg(VTPInfo.PointOnTape[0]).arg(VTPInfo.PointOnTape[1]).arg(VTPInfo.PointOnTape[2]).arg(VTPInfo.PointOnTape[3])
+        QString str = QString("7P:(%1,%2,%3,%4,%5,%6,%7);VCtl:(%8);SI:(%9,%10):GM(%11)").arg(VTPInfo.PointOnTape[0]).arg(VTPInfo.PointOnTape[1]).arg(VTPInfo.PointOnTape[2]).arg(VTPInfo.PointOnTape[3])
                                 .arg(VTPInfo.PointOnTape[4]).arg(VTPInfo.PointOnTape[5]).arg(VTPInfo.PointOnTape[6])
-                                .arg(VTPInfo.SpeedCtl).arg(VTPInfo.StationName).arg(VTPInfo.ToStationDist);
+                                .arg(VTPInfo.SpeedCtl).arg(VTPInfo.StationName).arg(VTPInfo.ToStationDist).arg(VTPInfo.GotMarkFlag);
     #else
         QString str = QString("SI:(%1,%2)").arg(VTPInfo.StationName).arg(VTPInfo.ToStationDist);
     #endif
@@ -208,26 +208,24 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         }
     #else
         //Got the mark in speed down and no in arc turning
-        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState))
+        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
         {
+            this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+            this->MarkCntRecord++;
+
             this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
             if(this->SocketReadyFlag)
             {
                 QString StationNameStr = "Station:"+QString::number(VTPInfo.GotMarkFlag) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
                 this->tcpSocketSendMessageSlot(StationNameStr);
-                qDebug()<<StationNameStr;
+                qDebug()<<StationNameStr<<this->MarkCntRecord;
             }
             else
             {
                 this->VTPInfo.StationName = VTPInfo.StationName;
-                //qDebug()<<"Station:"<<VTPInfo.StationName;
+                qDebug()<<"Station:"<<VTPInfo.StationName<<this->MarkCntRecord;
             }
         }
-        else
-        {
-            qDebug()<<"GotStationNameInTurning:"<<VTPInfo.StationName;
-        }
-
     #endif
 
 #endif
@@ -277,7 +275,7 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
 #if(PLATFORM == PLATFORM_R3)
 void FTR_CTR3SpeedCtl::UpdateIMUInfoSlot(Pose_t pose)
 {
-    qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
+    //qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;
     this->pose.norm = pose.norm;
     this->pose.pitch= pose.pitch;
     this->pose.roll = pose.roll;

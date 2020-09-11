@@ -40,7 +40,7 @@ void ReadVTPPipe_Thread::run()
             QStringList RxInfoList = VTPInfoStr.split(",", QString::SkipEmptyParts);
             //qDebug()<<RxInfoList;
         #if(PLATFORM == PLATFORM_U250)
-            if(10 == RxInfoList.size())//7points,SpeedUp/Down,StationName,ToStationDist,10*10Mark
+            if(11 == RxInfoList.size())//7points,SpeedUp/Down,StationName,ToStationDist,10*10Mark
             {
                 for(quint8 i = 0;i<7;i++)
                 {
@@ -49,7 +49,7 @@ void ReadVTPPipe_Thread::run()
                 this->VTPInfo.SpeedCtl      = (SpeedCtl_e)(RxInfoList.at(7).toInt());
                 this->VTPInfo.StationName   = (RxInfoList.at(8).toInt());
                 this->VTPInfo.ToStationDist = (RxInfoList.at(9).toUInt());
-                //this->VTPInfo.GotMarkFlag   = (bool)(RxInfoList.at(10).toInt());
+                this->VTPInfo.GotMarkFlag   = (bool)(RxInfoList.at(10).toInt());
                 //qDebug()<<this->VTPInfo.SpeedCtl;
                 this->UpdateInfo();
                 //emit UpdateInfoSignal(VTPInfo);

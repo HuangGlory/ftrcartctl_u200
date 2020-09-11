@@ -3,6 +3,7 @@
 #include <sys/types.h>//mkfifo
 #include <sys/stat.h>//mkfifo
 #include <licensecheck.h>
+#include <PlatformParameter.h>
 
 #if(0)
 #include <QMutex>
@@ -85,6 +86,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 #if(LICENSE_USED)
+    qDebug()<<"License Used:";
     LicenseCheck *licCheck = new LicenseCheck;
     qDebug()<<"licensed:"<<licCheck->CheckLicenseResult();
     if(!licCheck->CheckLicenseResult())
@@ -93,6 +95,8 @@ int main(int argc, char *argv[])
     }
 
     delete licCheck;
+#else
+    qDebug()<<"License Not Used:";
 #endif
 
     umask(0);
@@ -103,8 +107,5 @@ int main(int argc, char *argv[])
     //qInstallMessageHandler(myMessageOutput);
     FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);
 
-    //delete ftrCartCtl;
-    //ret = a.exec();
-    //delete ftrCartCtl;
     return a.exec();
 }

@@ -12,7 +12,7 @@ LicenseCheck::LicenseCheck(QObject *parent) : QObject(parent)
         {
             this->LicenseStrFromFile = licenseFile->readAll().replace("\n","");
             licenseFile->close();
-            qDebug()<<this->LicenseStrFromFile;
+            //qDebug()<<this->LicenseStrFromFile;
         }
         else
         {
@@ -59,5 +59,6 @@ QString LicenseCheck::CalcLicense()
 
 bool LicenseCheck::CheckLicenseResult()
 {
-    return QString::compare(this->LicenseStrFromCalc , this->LicenseStrFromFile,Qt::CaseInsensitive);
+    //qDebug()<<this->LicenseStrFromCalc<<this->LicenseStrFromFile<<(this->LicenseStrFromCalc == this->LicenseStrFromFile);
+    return (bool)(this->LicenseStrFromCalc == this->LicenseStrFromFile);//QString::compare(this->LicenseStrFromCalc , this->LicenseStrFromFile,Qt::CaseInsensitive);
 }

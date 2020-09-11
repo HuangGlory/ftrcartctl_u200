@@ -21,7 +21,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     //this->FaceDirFlag                   = true;
     //this->StationName4VTP               = 0;
 
-
+    this->SettingJsonErrorFlag          = true;
     this->batCapacityInfo.voltage       = BAT_MAX_VOLTAGE;
     this->batCapacityInfo.lessThan10Flag = false;
     this->batCapacityInfo.lessThen20Flag = false;
@@ -41,9 +41,9 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->SettingJsonFileName   = SETTING_JSON_FILE_NAME;
     this->SettingJsonFile       = new QFile;
 
-    this->SBProcess = new SB_Thread;
-    this->RCProcess = new RC_Thread;
-    this->VTKProcess= new VTK_Thread;
+    //this->SBProcess = new SB_Thread;
+    //this->RCProcess = new RC_Thread;
+    //this->VTKProcess= new VTK_Thread;
 #if(PLATFORM == PLATFORM_R3)
     this->imuData       = new imu();
 #endif
@@ -163,6 +163,100 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 
     }
 
+    {
+        QFile *file = new QFile(SETTING_WHEEL_DIAM_JSON_FILE_NAME);
+        if(!file->exists())
+        {
+            QJsonObject jsonObject;
+            jsonObject.insert("left_wheel_diam",LEFT_WHEEL_DIAM);
+            jsonObject.insert("right_wheel_diam",RIGHT_WHEEL_DIAM);
+            jsonObject.insert("encoder_cnt",ENCODER_CNT);
+
+            this->SettingParameterFromJson.LeftDiam = LEFT_WHEEL_DIAM;
+            this->LeftWheelDiam = this->SettingParameterFromJson.LeftDiam;
+
+            this->SettingParameterFromJson.RightDiam = RIGHT_WHEEL_DIAM;
+            this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
+
+            this->EncoderCnt = ENCODER_CNT;
+
+            QJsonDocument jsonDoc;
+            jsonDoc.setObject(jsonObject);
+
+            if(file->open(QIODevice::ReadWrite))
+            {
+                file->write(jsonDoc.toJson());
+                file->close();
+                delete file;
+                qDebug()<<"Create setting_d.json ok:";
+            }
+            else
+            {
+                qDebug()<<"Create setting_d.json fail:";
+            }
+        }
+        else
+        {
+            if(file->open(QIODevice::ReadOnly))
+            {
+                QByteArray data=file->readAll();
+                file->close();
+                delete file;
+
+                //使用json文件对象加载字符串
+                QJsonParseError json_error;
+                QJsonDocument doc=QJsonDocument::fromJson(data,&json_error);
+
+                if(json_error.error != QJsonParseError::NoError)
+                {
+                    qDebug()<<"Setting_d.json ERROR!";
+                }
+
+                //判断是否对象
+                if(doc.isObject())
+                {
+                    //把json文档转换为json对象
+                    QJsonObject obj=doc.object();
+                #if(1)
+                    //wheel diam
+                    if(obj.contains("left_wheel_diam"))
+                    {
+                        this->SettingParameterFromJson.LeftDiam = obj.value("left_wheel_diam").toDouble();
+                        this->LeftWheelDiam = this->SettingParameterFromJson.LeftDiam;
+                        qDebug()<<"LWD"<<this->SettingParameterFromJson.LeftDiam;
+                    }
+                    else
+                    {
+                        this->SettingParameterFromJson.LeftDiam = LEFT_WHEEL_DIAM;
+                        this->LeftWheelDiam = this->SettingParameterFromJson.LeftDiam;
+                        qDebug()<<"LWD Used Default:"<<this->SettingParameterFromJson.LeftDiam;
+                    }
+
+                    if(obj.contains("right_wheel_diam"))
+                    {
+                        this->SettingParameterFromJson.RightDiam = obj.value("right_wheel_diam").toDouble();
+                        this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
+                         qDebug()<<"RWD"<<this->SettingParameterFromJson.RightDiam;
+                    }
+                    else
+                    {
+                        this->SettingParameterFromJson.RightDiam = RIGHT_WHEEL_DIAM;
+                        this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
+                         qDebug()<<"RWD Used Default:"<<this->SettingParameterFromJson.RightDiam;
+                    }
+
+                    if(obj.contains("encoder_cnt"))
+                    {
+                        this->EncoderCnt = obj.value("encoder_cnt").toInt();
+                        qDebug()<<"ECN"<<this->EncoderCnt;
+                    }
+                    //end wheel diam
+                #endif
+                }
+            }
+        }
+    }
+
 
 #if(1)//communication with E-BOX seriap port
     this->AppUART   = new QSerialPort;    
@@ -211,14 +305,12 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->Time4RCTimeout,SIGNAL(timeout()),this,SLOT(Time4RCTimeoutSlot()));
 #endif
 
-    this->SBProcess->stop();
-    this->RCProcess->stop();
-    this->VTKProcess->stop();
+    //this->SBProcess->stop();
+    //this->RCProcess->stop();
+    //this->VTKProcess->stop();
 
     connect(this,SIGNAL(toCalcCapacitySignal(double)),this,SLOT(calcCapacitySlot(double)));
-    connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));
-
-    if(!this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->start();
+    connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));    
 }
 
 void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
@@ -252,13 +344,14 @@ void FTR_CTR3SpeedCtl::SettingOAToggleSlot(CartState_e cartState)
 
 bool FTR_CTR3SpeedCtl::WriteWheelDiamToBaseJsonSlot(void)
 {
-    this->SettingJsonFile->setFileName(this->SettingJsonFileName);
-    if(!this->SettingJsonFile->isOpen())
+    //this->SettingJsonFile->setFileName(this->SettingJsonFileName);
+    QFile *file = new QFile(SETTING_WHEEL_DIAM_JSON_FILE_NAME);
+    if(!file->isOpen())
     {
-        if(this->SettingJsonFile->open(QIODevice::ReadOnly))
+        if(file->open(QIODevice::ReadOnly))
         {
-            QByteArray data=this->SettingJsonFile->readAll();
-            this->SettingJsonFile->close();
+            QByteArray data=file->readAll();
+            file->close();
 
             //使用json文件对象加载字符串
             QJsonParseError json_error;
@@ -276,25 +369,25 @@ bool FTR_CTR3SpeedCtl::WriteWheelDiamToBaseJsonSlot(void)
                 //把json文档转换为json对象
                 QJsonObject obj=doc.object();
 
-                this->GlobaOAStateFlag = (this->GlobaOAStateFlag)?(false):(true);
-        #if(1)
+            #if(1)
                 if(obj.contains("left_wheel_diam")) obj.insert("left_wheel_diam",this->LeftWheelDiam);
                 if(obj.contains("right_wheel_diam")) obj.insert("right_wheel_diam",this->RightWheelDiam);
 
                 doc.setObject(obj);
 
-                this->SettingJsonFile->open(QIODevice::WriteOnly|QIODevice::Truncate);
+                file->open(QIODevice::WriteOnly|QIODevice::Truncate);
 
-                this->SettingJsonFile->seek(0);
-                this->SettingJsonFile->write(doc.toJson());
-                this->SettingJsonFile->flush();
-                this->SettingJsonFile->close();
-        #endif
+                file->seek(0);
+                file->write(doc.toJson());
+                file->flush();
+                file->close();
+            #endif
                 qDebug()<<"Save Diameter:"<<this->LeftWheelDiam<<this->RightWheelDiam<<"Successful!";
             }
             else
             {
                 qDebug()<<"JSON no Object";
+                delete file;
                 return false;
             }
         }
@@ -303,6 +396,7 @@ bool FTR_CTR3SpeedCtl::WriteWheelDiamToBaseJsonSlot(void)
             qDebug()<<"Open Setting Json faile";
         }
     }
+    delete file;
     return true;
 }
 
@@ -550,16 +644,18 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     //this->Time2SendData->stop();
                     this->cnt4IntoConfigModePNGToggle = 0;
 
-                    //this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+                    this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
                 {
-                    //this->SB_RealTimeInfo();
+                    this->SB_RealTimeInfo();
                 }
             #endif
+
+                this->MarkCntRecord             = 0;
 
                 Wait4CameraReadyIndecateFlag    = false;
                 this->VTKInfo.VTKDist           = 0;
@@ -578,8 +674,9 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                 if(!this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->start();
                 if(!this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->start();
+                if(!this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->start();
 
-                if(this->batCapacityInfo.lessThan10Flag)
+                if((this->batCapacityInfo.lessThan10Flag) && (!this->SettingJsonErrorFlag))
                 {
                     this->lowPowerToShutDownSystemSlot();
                 }
@@ -615,7 +712,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 //this->RCProcess->start();
                 //this->VTKProcess->stop();
 
-                //this->RC_RealTimeInfo();
+                this->RC_RealTimeInfo();
             #endif
                 if(this->CartState != this->PreCartState)//special for RC state
                 //if(this->TaskFlag.TaskFlagKeepSendModeChange)
@@ -635,6 +732,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 {
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
                 }
+
+                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
             }
             break;
 
@@ -664,6 +763,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                     //this->Time2SendData->start(SEND_DATA_PER);
                 }
+                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();
                 if(!this->ReadVTKPipeProcess->isRunning() && !this->ClearVTKPipeProcess->isRunning()) this->ReadVTKPipeProcess->start();//fix sometimes change mode to VTK too fast,the thread not created
 
@@ -693,10 +793,11 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->Wait4CameraReadyIndecateFlag = true;
                     this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
 
-                    //this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+                    this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
                 }
+                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
                 if(!this->ReadVTPPipeProcess->isRunning() && !this->ClearVTPPipeProcess->isRunning()) this->ReadVTPPipeProcess->start();
 
@@ -716,7 +817,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 //this->RCProcess->start();
                 //this->VTKProcess->stop();
 
-                //this->RC_RealTimeInfo();
+                this->RC_RealTimeInfo();
             #endif
                 //if(this->CartState != this->PreCartState)
                 if(this->TaskFlag.TaskFlagKeepSendModeChange)
@@ -743,9 +844,9 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
             break;
         default:
             {
-                this->SBProcess->stop();
-                this->RCProcess->stop();
-                this->VTKProcess->stop();
+                //this->SBProcess->stop();
+                //this->RCProcess->stop();
+                //this->VTKProcess->stop();
             }
             break;
         }
@@ -900,6 +1001,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 this->SpeedUpAndDownState       = (bool)(this->RxInfo.MultiFunction & SpeedUpAndDownBit);
                 this->StartActionFlag           = (bool)(this->RxInfo.MultiFunction & StartActionBit);
                 this->InArcTurningFlag          = (bool)(this->RxInfo.MultiFunction & InArcTurningBit);
+                this->InLostTapeTurningFlag     = (bool)(this->RxInfo.MultiFunction & LostTapeTurningBit);
 
                 bool InPauseStateFlag           = (bool)(this->RxInfo.MultiFunction & InPauseStateBit);
 
@@ -1007,10 +1109,10 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 }
                 else if(STATE_VTP == this->CartState)
                 {
-                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);SA(%5);IAT(%6);SUDS(%7);\n")
+                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);SA(%5);IAT(%6);SUDS(%7);LTT(%8)\n")
                             .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
                             .arg(this->RxInfo.RightTargetSpeed).arg(this->StartActionFlag).arg(this->InArcTurningFlag)
-                            .arg(this->SpeedUpAndDownState));
+                            .arg(this->SpeedUpAndDownState).arg(this->InLostTapeTurningFlag));
                 }
                 else
                 {
@@ -1075,14 +1177,14 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                     this->RightWheelDiam = this->WheelCaliDist*this->EncoderCnt/(converValue*M_PI);
                 }
                 QString str;
+                str.append("WheelDiam:");
+                str.append(QString::number(this->LeftWheelDiam,10,3));
+                str.append("    ");
+                str.append(QString::number(this->RightWheelDiam,10,3));
+                str.append("\n");
+
                 if(this->SocketReadyFlag)
                 {
-                    str.append("WheelDiam:");
-                    str.append(QString::number(this->LeftWheelDiam,10,3));
-                    str.append("    ");
-                    str.append(QString::number(this->RightWheelDiam,10,3));
-                    str.append("\n");
-
                     this->tcpSocketSendMessageSlot(str);
                     qDebug()<<str;
                 }
@@ -1283,7 +1385,8 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
             {
                 //把json文档转换为json对象
                 QJsonObject obj=doc.object();
-
+                this->SettingJsonErrorFlag = false;
+            #if(0)
                 //wheel diam
                 if(obj.contains("left_wheel_diam"))
                 {
@@ -1305,7 +1408,7 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                      qDebug()<<"ECN"<<this->EncoderCnt;
                 }
                 //end wheel diam
-
+            #endif
 
                 if(obj.contains("Recover_OA_Timeout"))
                 {
@@ -1329,6 +1432,11 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 {
                     this->batCapacityInfo.theMaxCapacity = obj.value("Bat_Capacity").toDouble();
                     qDebug()<<"Bat_Capacity"<<this->batCapacityInfo.theMaxCapacity;
+                }
+                else
+                {
+                    this->batCapacityInfo.theMaxCapacity = BAT_CAPACITY;
+                    qDebug()<<"Bat_Capacity Used Default:"<<this->batCapacityInfo.theMaxCapacity;
                 }
 
                 if(obj.contains("vtp_log"))
@@ -1386,7 +1494,6 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
             //end RC parameter setting
 
             //VTP parameter setting
-
                 if(obj.contains("stations_num"))
                 {
                     this->stationsNum = obj.value("stations_num").toInt();
@@ -1476,12 +1583,14 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
             }
             else
             {
-                qDebug()<<"JSON no Object";
+                this->batCapacityInfo.theMaxCapacity = BAT_CAPACITY;
+                qDebug()<<"JSON no Object"<<this->batCapacityInfo.theMaxCapacity;
                 return false;
             }
         }
         else
         {
+            this->batCapacityInfo.theMaxCapacity = BAT_CAPACITY;
             qDebug()<<"Open Setting Json faile";
         }
     }
@@ -1764,6 +1873,7 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             bool convertResult = false;
             int CartState = RxMessage.toUInt(&convertResult);
             if(convertResult) this->CartStateCtlProcess->SetCartStateExternal((CartState_e)(CartState));
+            qDebug()<<"ModeChange from Phone:"<<CartState;
         }
         else if(RxMessage.startsWith("Pause&Go:",Qt::CaseInsensitive))
         {
@@ -1827,7 +1937,7 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             bool convertResult = false;
             int beepType = RxMessage.toUInt(&convertResult);
             if(convertResult) this->SendCMD(CMD_BEEP_SOUND,(BeepType_t)(beepType));
-
+            qDebug()<<"Beep from phone:";
         }
         /*else if(RxMessage.startsWith("StateInfo:",Qt::CaseInsensitive))//need rt info
         {
@@ -1853,7 +1963,6 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             #endif
                 {
                 #if(!USED_DEFAULT_PARAMETER_ON_STATION)
-
                     convertValue   = RxMessageList.at(0).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.CtlByte = (uint8_t)(convertValue);
 
@@ -1863,7 +1972,7 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
 
                     convertValue   = RxMessageList.at(1).toInt(&convertResult);
                     if(convertResult)  this->VTP_UpdateAction(ActionOnCrossType_e(convertValue));
-                #if(!NUM_STATION_USED)
+                #if(0)//!NUM_STATION_USED)
                     //6,5,14
                     if((ActionOnCrossType_e(convertValue) == ACTION_UTURN_GO) ||
                         (ActionOnCrossType_e(convertValue) == ACTION_UTURN_STOP) ||
@@ -1875,8 +1984,6 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                 #endif
                     convertValue   = RxMessageList.at(4).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.PauseTime = (uint16_t)(convertValue);
-
-
                 }
                 //qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime;
             }
@@ -1973,46 +2080,6 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             }
             qDebug()<<"CC:"<<RxMessage;
         }
-    #if(0)
-        else if(RxMessage.startsWith("FunctionCali"))
-        {
-            qDebug()<<RxMessage;
-            RxMessage = RxMessage.replace("FunctionCali:","");
-            RxMessage = RxMessage.replace("\n","");
-
-            QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
-
-            if(RxMessageList.size() == 2)
-            {
-                if(RxMessageList.at(0).contains("CameraCali"))
-                {
-                    if(RxMessageList.at(0).toInt() == 1)
-                    {
-                        this->WriteMainPipeSlot(STATE_CAMERA_RELEASE);//to release the camera
-                        this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
-                    }
-                    else
-                    {
-                        this->WriteMainPipeSlot(STATE_SB);
-                        this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,LOW);
-                    }
-                    qDebug()<<"CC:"<<RxMessageList.at(0);
-                }
-                else if(RxMessageList.at(0).contains("WheelCali"))
-                {
-                    if(RxMessageList.at(1).toInt() == 1)
-                    {
-                        this->NeedIntoODOCaliFlag = true;
-                    }
-                    else
-                    {
-                        this->NeedOutODOCaliFlag = false;
-                    }
-                    qDebug()<<"WC:"<<RxMessageList.at(0);
-                }
-            }
-        }
-   #endif
         //this->tcpSocketSendMessageSlot(RxMessage);
     }
 }
@@ -2121,9 +2188,9 @@ FTR_CTR3SpeedCtl::~FTR_CTR3SpeedCtl()
         delete Time4RCTimeout;
     #endif
 
-    delete SBProcess;
-    delete RCProcess;
-    delete VTKProcess;
+    //delete SBProcess;
+    //delete RCProcess;
+    //delete VTKProcess;
 
     delete ReadVTKPipeProcess;
     delete ReadVTPPipeProcess;
