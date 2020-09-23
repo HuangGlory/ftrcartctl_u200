@@ -46,15 +46,24 @@ using namespace std;
 
 #define FTRCARTCTL_IN_PIPE_NAME         ("/tmp/ftrCartCtl_pipe_input")
 #define FTRCARTCTL_OUT_PIPE_NAME        ("/tmp/ftrCartCtl_pipe_output")
+#define FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME ("/tmp/cart_status_vision_pipe_input")
 
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
 
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.4.01.U200@20200909\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.5.01.U200@20200922\n\n")
 /***********************
  * log:
+ * Ver:0.0.5.01.U200@20200922
+ * 1.fix 电池显示当充满电时会超过100%的问题
+ *
+ * Ver:0.0.5.00.U200@20200916
+ * 1.增加向vision用pipe送车子状态，p&g，加减速，等信息
+ * 2.在VTK下in idle超过1s进入Pause状态，在Pause状态时camera不使用推理捧，要再使用时需要按P&G and active
+ * 3.在VTK下in pause超过一定时间后退出SB模式
+ *
  * Ver:0.0.4.01.U200@20200909
  * 1.增加report从phone来的信息
  * 2.增加按键消抖时间，15->50
@@ -241,6 +250,9 @@ using namespace std;
 
 #define MCB_BLDC_PKT_SOP        (quint8)(0x02)
 
+#define PAUSE_TO_SB_TIME_DEFAULT  (quint16)(300)//about 5min
+#define IDLE_TO_PAUSE_TIME_DEFAULT  (quint16)(60)//about 5min
+
 #define SEND_DATA_PER   (quint16)(1000)//(31) (97)
 #define LOOP_PER        (quint8)(97)//(51)
 #define RC_COMM_TIMEOUT (quint16)(1000)
@@ -310,6 +322,7 @@ public slots:
 
     //communication with vision application
     void WriteMainPipeSlot(CartState_e cartState);
+    void WriteInfoToVisionPipeSlot(QString info);
     //void ReadVTPInfoFromPipeSlot();
     //void ReadVTKInfoFromPipeSlot();
     void fileChangedSlot(const QString & path);
@@ -407,6 +420,7 @@ private:
     bool            CartWantToPNGState;
     bool            HSBeUsedFlag;
     bool            VTKInIdleFlag;
+    bool            VTKIdleIntoPauseFlag;
     bool            SpeedUpAndDownState;
     bool            StartActionFlag;
     bool            InArcTurningFlag;
@@ -431,6 +445,8 @@ private:
 
     bool            SettingJsonErrorFlag;
 
+    quint16         IdleToPauseInVTKTimeoutCnt;
+    quint16         PauseToSBInVTKTimeoutCnt;
     quint16         WheelCaliDist;
     quint16         EncoderCnt;
     double          LeftWheelDiam;
@@ -458,6 +474,7 @@ private:
     QString         JsonFileName;
     QString         SettingJsonFileName;
     QString         MainInputPipeName;
+    //QString         StateInfoInputPipeName;
     QString         VTKOutputPipeName;
     QString         VTPOutputPipeName;
     QString         ftrCartCtlInputPipeName;
@@ -467,6 +484,7 @@ private:
 
     QFile           *JsonFile;
     QFile           *MainInputPipeFile;
+    QFile           *StateInfoInputPipeFile;
     QFile           *VTKOutputPipeFile;
     QFile           *VTPOutputPipeFile;
     QFile           *ftrCartCtlInputPipeFile;

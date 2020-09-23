@@ -9,7 +9,7 @@ public:
 
 FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new FTR_CTR3SpeedCtlData)
 {
-    qDebug()<<"R3 Process Main Thread ID:"<<QThread::currentThreadId();
+    qDebug()<<"FtrCartCtl Thread ID:"<<QThread::currentThreadId();
     qRegisterMetaType<MotorCtrlInfo>("MotorCtrlInfo");
     qRegisterMetaType<RxInfo_t>("RxInfo_t");
     qRegisterMetaType<VTKInfo_t>("VTKInfo_t");
@@ -20,6 +20,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 
     //this->FaceDirFlag                   = true;
     //this->StationName4VTP               = 0;
+    this->PauseToSBInVTKTimeoutCnt      = PAUSE_TO_SB_TIME_DEFAULT;
+    this->IdleToPauseInVTKTimeoutCnt     = IDLE_TO_PAUSE_TIME_DEFAULT;
 
     this->SettingJsonErrorFlag          = true;
     this->batCapacityInfo.voltage       = BAT_MAX_VOLTAGE;
@@ -75,6 +77,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->GetSettingParameterFromJson(this->SettingJsonFileName);
 
     this->MainInputPipeFile         = new QFile(this->MainInputPipeName);
+    this->StateInfoInputPipeFile    = new QFile(FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME);
     this->VTKOutputPipeFile         = new QFile(this->VTKOutputPipeName);
     this->VTPOutputPipeFile         = new QFile(this->VTPOutputPipeName);
 
@@ -103,7 +106,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
-    while(!(this->MainInputPipeFile->exists() && this->VTKOutputPipeFile->exists() && this->VTPOutputPipeFile->exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
+    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && this->VTKOutputPipeFile->exists() && this->VTPOutputPipeFile->exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
     qDebug()<<"Pipe file ready";
 #endif
 
@@ -113,6 +116,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->tcpServer->setMaxPendingConnections(2);
 
     this->OpenPipe(this->MainInputPipeFile,QIODevice::WriteOnly);
+    this->OpenPipe(this->StateInfoInputPipeFile,QIODevice::WriteOnly);
     this->OpenPipe(this->ftrCartCtlOutputPipeFile,QIODevice::ReadWrite);
     //this->OpenPipe(this->VTKOutputPipeFile,QIODevice::ReadOnly);
     //this->OpenPipe(this->VTPOutputPipeFile,QIODevice::ReadOnly);
@@ -647,6 +651,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
+
+                    this->VTKIdleIntoPauseFlag = true;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -762,6 +768,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
 
                     //this->Time2SendData->start(SEND_DATA_PER);
+
+                    this->VTKIdleIntoPauseFlag = true;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();
@@ -859,7 +867,44 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
     ++tickCntPerSecond;
     //qDebug()<<tickCntPerSecond;
     if(this->AppUART->isOpen())
-    {
+    {        
+    #if(1)
+        //idle to pause
+        static quint16 VTKIdleToPauseTimeoutCnt = 0;
+        if((this->CartState ==  STATE_VTK) && !this->Wait4CameraReadyIndecateFlag && this->VTKInIdleFlag && !this->VTKIdleIntoPauseFlag && !this->CartInPauseState)
+        {
+            if(++VTKIdleToPauseTimeoutCnt >= this->IdleToPauseInVTKTimeoutCnt)
+            {
+                VTKIdleToPauseTimeoutCnt = 0;
+                this->VTKIdleIntoPauseFlag = true;
+                this->CartWantToPNGState = !this->CartInPauseState;
+                qDebug("Want To PNG Case Idle");
+            }
+            //qDebug()<<"VTKIdleToPause:"<<VTKIdleToPauseTimeoutCnt<<this->CartWantToPNGState;
+        }
+        else
+        {
+            VTKIdleToPauseTimeoutCnt = 0;
+        }
+        if(this->VTKIdleIntoPauseFlag && !this->VTKInIdleFlag) this->VTKIdleIntoPauseFlag = false;
+    #endif
+
+        //pause to sb
+        static quint16 VTKPauseToSBTimeoutCnt;
+        if((this->CartState ==  STATE_VTK) && this->CartInPauseState)
+        {
+            if(++VTKPauseToSBTimeoutCnt >= this->PauseToSBInVTKTimeoutCnt)
+            {
+                this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                qDebug("Want Into SB More Than %d Sec:",this->PauseToSBInVTKTimeoutCnt);
+            }
+            //qDebug()<<"Want Into SB:"<<VTKPauseToSBTimeoutCnt;
+        }
+        else
+        {
+            VTKPauseToSBTimeoutCnt = 0;
+        }
+
         if(this->NeedIntoODOCaliFlag)
         {
             this->SendCMD(CMD_DIAM_CALIBRATION,0x01);
@@ -895,6 +940,19 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
                 this->CartStateCtlProcess->BSP_SetLed(PNG_LED,0);
             }
         }
+
+    #if(1)
+        //add function to report info to vision
+        {
+            //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO
+            QString InfoToVisionStr;
+            InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8\n").arg(this->RxInfo.CartState).arg(this->RxInfo.PauseNGoState)
+                            .arg(this->SpeedUpAndDownState).arg(this->InArcTurningFlag).arg(this->StartActionFlag)
+                            .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO);
+
+            this->WriteInfoToVisionPipeSlot(InfoToVisionStr);
+        }
+    #endif
     }
 }
 
@@ -1123,6 +1181,20 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                             .arg(this->RxInfo.TOFMinDist).arg(this->RxInfo.USMinDist).arg(this->RxInfo.ODO).arg(this->RxInfo.roll).arg(this->RxInfo.pitch).arg(this->RxInfo.yaw).arg(this->HSWant2State).arg(this->RxInfo.HSWantToCartState));
                 }
             #endif
+
+            #if(0)
+                //add function to report info to vision
+                {
+                    //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO
+                    QString InfoToVisionStr;
+                    InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8\n").arg(this->RxInfo.CartState).arg(this->RxInfo.PauseNGoState)
+                                    .arg(this->SpeedUpAndDownState).arg(this->InArcTurningFlag).arg(this->StartActionFlag)
+                                    .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO);
+
+                    this->WriteInfoToVisionPipeSlot(InfoToVisionStr);
+                }
+            #endif
+
                 if(this->ShowLogFlag.ShowRtLogFlag)  qDebug()<<saveLogStr;
 
                 if(this->ShowLogFlag.SaveLog2FileFlag && this->SaveLogFile->isOpen())
@@ -1551,6 +1623,17 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
             //end VTP parameter setting
 
             //VTK parameter setting
+                if(obj.contains("pause_to_sb_time"))
+                {
+                    this->PauseToSBInVTKTimeoutCnt = obj.value("pause_to_sb_time").toInt();
+                    qDebug()<<"pause_to_sb_time"<<this->PauseToSBInVTKTimeoutCnt;
+                }
+
+                if(obj.contains("idle_to_pause_time"))
+                {
+                    this->IdleToPauseInVTKTimeoutCnt = obj.value("idle_to_pause_time").toInt();
+                    qDebug()<<"idle_to_pause_time"<<this->IdleToPauseInVTKTimeoutCnt;
+                }
                 if(obj.contains("tof_oa_vtk"))
                 {
                     this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off = obj.value("tof_oa_vtk").toBool();
@@ -2100,6 +2183,7 @@ void FTR_CTR3SpeedCtl::calcCapacitySlot(double voltage)
     const double batCoef[6] = {-0.0021095004 ,  0.4009820894 , -30.4476371198 ,  1154.4151180135 , -21853.1489934864 , 165216.3203402679};
     if(this->batCapacityInfo.voltage > voltage) this->batCapacityInfo.voltage = voltage;
     this->batCapacityInfo.Capacity = batCoef[0]*qPow(this->batCapacityInfo.voltage,5) + batCoef[1]*qPow(this->batCapacityInfo.voltage,4) + batCoef[2]*qPow(this->batCapacityInfo.voltage,3) + batCoef[3]*qPow(this->batCapacityInfo.voltage,2) + batCoef[4]*qPow(this->batCapacityInfo.voltage,1) + batCoef[5];
+    if(this->batCapacityInfo.Capacity > this->batCapacityInfo.theMaxCapacity) this->batCapacityInfo.Capacity = this->batCapacityInfo.theMaxCapacity;
     this->batCapacityInfo.ratio = this->batCapacityInfo.Capacity/this->batCapacityInfo.theMaxCapacity*100;
     //qDebug()<<this->batCapacityInfo.voltage<<this->batCapacityInfo.Capacity<<this->batCapacityInfo.ratio;
     if(this->batCapacityInfo.ratio < 10)

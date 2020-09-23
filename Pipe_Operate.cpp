@@ -74,6 +74,14 @@ void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
     //qDebug()<<"WriteMainPipeSlot"<<cartState<<state.toUtf8();
 }
 
+void FTR_CTR3SpeedCtl::WriteInfoToVisionPipeSlot(QString info)//cycle per second
+{
+    this->StateInfoInputPipeFile->write(info.toUtf8());
+    this->StateInfoInputPipeFile->flush();
+    //QFileInfo *fileInfo = new QFileInfo(this->StateInfoInputPipeFile->fileName());
+    //qDebug()<<"ToVisionInfo:"<<info.toUtf8();
+}
+
 void FTR_CTR3SpeedCtl::WriteOutPipeSlot(QString str)
 {
     qDebug()<<str;
