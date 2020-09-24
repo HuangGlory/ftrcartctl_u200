@@ -7,6 +7,64 @@ public:
 
 };
 
+void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
+{
+    QFile *file = new QFile(FTRCARTCTL_UPDATE_SH_FILE_NAME);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            QString shStr = file->readAll();
+            file->close();
+            if(!shStr.contains("sync"))
+            {
+                shStr.replace("sudo wget -i updateURL","sudo wget -i updateURL\nsync;sync;sync;sync;\n");
+
+                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
+                {
+                    file->seek(0);
+                    file->write(shStr.toUtf8());
+                    file->flush();
+                    file->close();
+                    qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"Modified!";
+                }
+            }
+            else
+            {
+                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"is Newer!";
+            }
+        }
+    }
+
+    file->setFileName(EBOX_UPDATE_SH_FILE_NAME);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            QString shStr = file->readAll();
+            file->close();
+            if(!shStr.contains("sync"))
+            {
+                shStr.replace("sudo wget -i updateURL","sudo wget -i updateURL\nsync;sync;sync;sync;\n");
+
+                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
+                {
+                    file->seek(0);
+                    file->write(shStr.toUtf8());
+                    file->flush();
+                    file->close();
+                    qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"Modified!";
+                }
+            }
+            else
+            {
+                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"is Newer!";
+            }
+        }
+    }
+    delete file;
+}
+
 FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new FTR_CTR3SpeedCtlData)
 {
     qDebug()<<"FtrCartCtl Thread ID:"<<QThread::currentThreadId();
@@ -166,6 +224,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
         }
 
     }
+
+    this->CheckUpdateScript();
 
     {
         QFile *file = new QFile(SETTING_WHEEL_DIAM_JSON_FILE_NAME);
@@ -652,7 +712,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
 
-                    this->VTKIdleIntoPauseFlag = true;
+                    this->VTKIdleIntoPauseFlag = false;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -769,7 +829,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                     //this->Time2SendData->start(SEND_DATA_PER);
 
-                    this->VTKIdleIntoPauseFlag = true;
+                    this->VTKIdleIntoPauseFlag = false;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();

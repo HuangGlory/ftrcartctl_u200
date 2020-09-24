@@ -7,7 +7,7 @@
 *****************************************************************************/
 
 #include <memory>
-#include "../../ftrCartCtl_WDS/readvtppipe_thread.h"
+#include "../readvtppipe_thread.h"
 #include <QtCore/qbytearray.h>
 #include <QtCore/qmetatype.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)

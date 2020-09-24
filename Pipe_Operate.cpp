@@ -264,7 +264,17 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
                 }
                 else
                 {
-                    WriteWheelDiamToBaseJsonSlot();
+                    converValue = RxMessageList.at(1).toInt(&convertResult);
+                    if(converValue)
+                    {
+                        WriteWheelDiamToBaseJsonSlot();
+                        qDebug()<<"Diam Cali Save:";
+                    }
+                    else
+                    {
+                        qDebug()<<"Diam Cali Cancle:";
+                    }
+
                     this->NeedOutODOCaliFlag = true;
                     this->WheelCaliDist = 0;
                 }

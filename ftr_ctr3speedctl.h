@@ -35,6 +35,10 @@
 #include <iostream>
 using namespace std;
 
+//update.sh
+#define EBOX_UPDATE_SH_FILE_NAME tr("/home/pi/ftrCartCtl/download/EBox/update.sh")
+#define FTRCARTCTL_UPDATE_SH_FILE_NAME tr("/home/pi/ftrCartCtl/download/update.sh")
+
 //Json
 #define JSON_FILE_NAME      tr("/home/pi/vision/data/config.json")
 #define SETTING_JSON_FILE_NAME tr("/home/pi/ftrCartCtl/settings.json")
@@ -53,11 +57,16 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.5.01.U200@20200922\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.6.00.U200@20200923\n\n")
 /***********************
  * log:
+ * Ver:0.0.6.00.U200@20200923
+ * 1.增加pipe_input时WheelCali可以cancle
+ * 2.fix 第一次进入VTK时，不active时，超过30s不会到Pause的问题
+ *
  * Ver:0.0.5.01.U200@20200922
  * 1.fix 电池显示当充满电时会超过100%的问题
+ * 2.去更新软件更新脚本，增加sync
  *
  * Ver:0.0.5.00.U200@20200916
  * 1.增加向vision用pipe送车子状态，p&g，加减速，等信息
@@ -272,6 +281,8 @@ public:
 
     void    SendCMD(UserCmd cmd,quint8 data1 = 0x00,quint8 data2 = 0x00,quint8 data3 = 0x00);
 
+    //check&modify update.sh
+    void CheckUpdateScript(void);
     //tx cmd function
     void SB_Enter();
     void SB_RealTimeInfo(void);
