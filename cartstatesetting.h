@@ -27,7 +27,7 @@
 
 #define SEND_DATA_PER   (quint8)(31)
 #define LOOP_PER        (quint8)(51)
-
+#if(PLATFORM == PLATFORM_U250)
 //BSP define
 typedef enum
 {
@@ -43,7 +43,23 @@ typedef enum
     LAMP_LED=LED5,
     LEDn
 }LED_TypeDef;
-
+#else
+//BSP define
+typedef enum
+{
+    LED1 = 0,
+    SB_LED=LED1,
+    LED2 = 1,
+    RC_LED=LED2,
+    LED3 = 2,
+    PNG_LED=LED3,
+    LED4 = 3,
+    VTP_LED=LED4,
+    LED5 = 4,
+    LAMP_LED=LED5,
+    LEDn
+}LED_TypeDef;
+#endif
 typedef enum
 {
     KEY1 = 0,

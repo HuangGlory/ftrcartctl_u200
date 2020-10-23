@@ -78,7 +78,7 @@
     #define Y_AXIS7						(double)(0)					// MOTOR_SHAFT
 
 #else
-    #define LICENSE_USED            (1)
+    #define LICENSE_USED            (0)
 
     #define BAT_MAX_VOLTAGE         (30.0)
     #define BAT_MIN_VOLTAGE         (23.0)
@@ -644,6 +644,7 @@ typedef struct _VTPInfo_t
 
 typedef struct _VTKInfo_t
 {
+    uint16_t VTKDistBaseHeight;
     uint16_t VTKDist;
     int8_t   VTKAngle;
     uint8_t  CtlByte;

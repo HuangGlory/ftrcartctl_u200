@@ -9,21 +9,31 @@ public:
 
 void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
 {
+    QString oldShVersion;
+
     QFile *file = new QFile(FTRCARTCTL_UPDATE_SH_FILE_NAME);
     if(file->exists())
     {
         if(file->open(QIODevice::ReadOnly))
         {
-            QString shStr = file->readAll();
-            file->close();
-            if(!shStr.contains("sync"))
+            do
             {
-                shStr.replace("sudo wget -i updateURL","sudo wget -i updateURL\nsync;sync;sync;sync;\n");
+                QString shStr = file->readLine();
+                if(shStr.contains("version:"))
+                {
+                    oldShVersion = shStr.replace("#","").replace("\n","");
+                    break;
+                }
+            }while(1);
+            file->close();
 
+            if(oldShVersion != FTRCARTCTL_UPDATE_SH_VERSION)
+            {
+                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<FTRCARTCTL_UPDATE_SH_VERSION;
                 if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
                 {
                     file->seek(0);
-                    file->write(shStr.toUtf8());
+                    file->write(FTRCARTCTL_UPDATE_SH.toUtf8());
                     file->flush();
                     file->close();
                     qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"Modified!";
@@ -31,7 +41,7 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
             }
             else
             {
-                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"is Newer!";
+                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"is:"<<FTRCARTCTL_UPDATE_SH_VERSION;
             }
         }
     }
@@ -41,16 +51,24 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
     {
         if(file->open(QIODevice::ReadOnly))
         {
-            QString shStr = file->readAll();
-            file->close();
-            if(!shStr.contains("sync"))
+            do
             {
-                shStr.replace("sudo wget -i updateURL","sudo wget -i updateURL\nsync;sync;sync;sync;\n");
+                QString shStr = file->readLine();
+                if(shStr.contains("version:"))
+                {
+                    oldShVersion = shStr.replace("#","").replace("\n","");
+                    break;
+                }
+            }while(1);
+            file->close();
 
+            if(oldShVersion != EBOX_UPDATE_SH_VERSION)
+            {
+                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<EBOX_UPDATE_SH_VERSION;
                 if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
                 {
                     file->seek(0);
-                    file->write(shStr.toUtf8());
+                    file->write(EBOX_UPDATE_SH.toUtf8());
                     file->flush();
                     file->close();
                     qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"Modified!";
@@ -58,10 +76,26 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
             }
             else
             {
-                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"is Newer!";
+                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"is:"<<EBOX_UPDATE_SH_VERSION;
             }
         }
     }
+
+    //update Lz Python script
+#if(1)
+    QFileInfo *fileInfo= new QFileInfo("/home/pi/ftrCartCtl/UpDateApp.py");
+    if(fileInfo->exists() && (fileInfo->size() != 0))
+    {
+        system("sudo cp -f /home/pi/ftrCartCtl/UpDateApp.py /home/pi/Lz/");
+        system("sync;sync;");
+        qDebug()<<"UpDateApp.py modified:";
+    }
+    else
+    {
+        qDebug()<<"UpDateApp.py File Err:";
+    }
+    delete fileInfo;
+#endif
     delete file;
 }
 
@@ -382,13 +416,14 @@ void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
     //this->TaskFlag.TaskFlagNeedToChangePNGStete = true;
     this->CartWantToPNGState = !this->CartInPauseState;
     ++this->cnt4IntoConfigModePNGToggle;
-
+#if(0)
     if(this->SocketReadyFlag)
     {
         QString StationNameStr = "Pause&Go:"+QString::number(this->CartWantToPNGState);
         this->tcpSocketSendMessageSlot(StationNameStr);
     }
     //qDebug()<<"PnG:"<<this->CartWantToPNGState<< this->CartInPauseState;
+#endif
 }
 
 void FTR_CTR3SpeedCtl::SettingOAToggleSlot(CartState_e cartState)
@@ -2223,13 +2258,23 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             }
             qDebug()<<"CC:"<<RxMessage;
         }
-        //this->tcpSocketSendMessageSlot(RxMessage);
     }
 }
 
 void FTR_CTR3SpeedCtl::tcpSocketSendMessageSlot(QString message)
 {
-    this->tcpSocket->write(message.toLatin1());
+    QString CurrentTimeStr = QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
+
+    message.replace("\n","");
+    QStringList messageList = message.split(":");
+
+    if(messageList.size()>=1)
+    {
+        QString value = "0";
+        if(messageList.size() == 2) value = messageList.at(1);
+        QString toSendMessage = QString("%0$%1$%2$%3$%4$%5\r").arg(0).arg(0).arg(CurrentTimeStr).arg(0).arg(messageList.at(0)).arg(value);
+        this->tcpSocket->write(toSendMessage.toLatin1());
+    }
 }
 
 void FTR_CTR3SpeedCtl::lowPowerToShutDownSystemSlot(void)

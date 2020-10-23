@@ -25,6 +25,8 @@
 #include <QProcess>
 #include <QDir>
 
+#include <updateScript.h>
+
 #include <QTcpServer>  //监听套接字
 #include <QTcpSocket> //通信套接字
 
@@ -34,10 +36,6 @@
 
 #include <iostream>
 using namespace std;
-
-//update.sh
-#define EBOX_UPDATE_SH_FILE_NAME tr("/home/pi/ftrCartCtl/download/EBox/update.sh")
-#define FTRCARTCTL_UPDATE_SH_FILE_NAME tr("/home/pi/ftrCartCtl/download/update.sh")
 
 //Json
 #define JSON_FILE_NAME      tr("/home/pi/vision/data/config.json")
@@ -57,9 +55,22 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.6.00.U200@20200923\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.6.04.U200@20201019\n\n")
 /***********************
  * log:
+ * Ver:0.0.6.04.U200@20201019
+ * 1.follow增加一笔身高距离
+ *
+ * Ver:0.0.6.03.U200@20201015
+ * 1.取消转弯时不看mark的条件
+ *
+ * Ver:0.0.6.02.U200@20200929
+ * 1.修改LZ updateApp.py脚本
+ *
+ * Ver:0.0.6.01.U200@20200924
+ * 1.修改update.sh,增加check文件大小为空的问题
+ * 2.修改socket发数据格式
+ *
  * Ver:0.0.6.00.U200@20200923
  * 1.增加pipe_input时WheelCali可以cancle
  * 2.fix 第一次进入VTK时，不active时，超过30s不会到Pause的问题

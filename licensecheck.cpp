@@ -5,6 +5,7 @@
 LicenseCheck::LicenseCheck(QObject *parent) : QObject(parent)
 {
     this->LicenseStrFromCalc = this->CalcLicense();
+
     QFile *licenseFile = new QFile(LICENSE_NAME);
     if(licenseFile->exists() && !licenseFile->isOpen())
     {
@@ -21,40 +22,80 @@ LicenseCheck::LicenseCheck(QObject *parent) : QObject(parent)
     }
     else
     {
-        qDebug()<<"No License:"<<this->CalcLicense();
-    }
-}
-
-
-QString LicenseCheck::getMacAddress()
-{
-    QString text="";
-    foreach(QNetworkInterface interface, QNetworkInterface::allInterfaces())
-    {
-        if (!(interface.flags() & QNetworkInterface::IsRunning))
-        {
-          text = interface.hardwareAddress();
-          return text;
-        }
+        qDebug()<<"No License:";
     }
 }
 
 QString LicenseCheck::CalcLicense()
 {
-     QString macStr=this->getMacAddress();
-     if(!macStr.isEmpty())
-     {
-         QStringList macStrList = macStr.split(":");
-         quint8 cnt = (macStrList.at(5).toUInt(0,16) & 0x0F);
+    QFile *MACIDFile = new QFile(MACID_FILE_NAME);
+    QFile *CPUIDFile = new QFile(CPUINFO_FILE_NAME);
 
-         for(quint8 i=0;i<cnt;i++)
-         {
-             QByteArray bb;
-             bb = QCryptographicHash::hash(macStr.toUtf8(), QCryptographicHash::Md5).toHex();
-             macStr = bb;
-         }
-     }
-     return macStr;
+    if(MACIDFile->exists() && CPUIDFile->exists())
+    {
+        //get MAC address
+        if(MACIDFile->open(QIODevice::ReadOnly))
+        {
+            this->macid = MACIDFile->readLine().toUpper().replace("\n","");
+            MACIDFile->close();
+        }
+        else
+        {
+            qDebug()<<"Read MACID Err:";
+        }
+
+        //get CPU ID
+        if(CPUIDFile->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString lineStr = CPUIDFile->readLine();
+                if(lineStr.contains("serial",Qt::CaseInsensitive))
+                {
+                    this->cpuid = lineStr.replace("Serial","",Qt::CaseInsensitive).simplified().replace(":","").toUpper().simplified();
+                    break;
+                }
+            }while(1);
+        }
+        else
+        {
+            qDebug()<<"Read CPUID Err:";
+        }
+        this->licenceRawData.append(this->cpuid).append(":").append(this->macid);
+        this->getLicence();
+    }
+    else
+    {
+        qDebug()<<"Licence Calc Err:";
+    }
+
+    delete MACIDFile;
+    delete CPUIDFile;
+
+     return this->licence;
+}
+
+QString LicenseCheck::getLicence(void)
+{
+    this->licence = this->licenceRawData;
+
+    if(!this->licenceRawData.isEmpty())
+    {
+        QStringList strList = this->licenceRawData.split(":");
+        quint8 cnt = (strList.at(5).toUInt(0,16) & 0x0F);
+        //qDebug()<<cnt<<this->licence;
+        for(quint8 i=0;i<cnt;i++)
+        {
+            QByteArray bb;
+            bb = QCryptographicHash::hash(this->licence.toUtf8(), QCryptographicHash::Md5).toHex();
+            this->licence = bb;
+        }
+    }
+    else
+    {
+        qDebug()<<"Empty Err:";
+    }
+    return this->licence;
 }
 
 bool LicenseCheck::CheckLicenseResult()

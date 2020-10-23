@@ -9,6 +9,8 @@ public:
     Kalman(double q,double r, double Result);
     void Init(double q,double r, double Result);
     double KalmanCalc(double NewData);
+    void setResult(double Result);
+    double getResult(void);
 private:
     double Q;
     double R;

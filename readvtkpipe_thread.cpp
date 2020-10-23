@@ -42,16 +42,18 @@ void ReadVTKPipe_Thread::run()
             QStringList RxInfoList = RxInfo.split(",", QString::SkipEmptyParts);
             //qDebug()<<RxInfo;
 
-            if(2 == RxInfoList.size())
+            if(3 == RxInfoList.size())//angle,dist2foot,distBaseHeight
             {
-                bool convertAngleResult = false,convertDistResult = false;
-                int  convertAngleValue = RxInfoList.at(0).toInt(&convertAngleResult);
-                int  convertDistValue  = RxInfoList.at(1).toUInt(&convertDistResult);
+                bool convertAngleResult = false,convertDistResult = false,convertDistBaseHeighResult = false;
+                int  convertAngleValue  = RxInfoList.at(0).toInt(&convertAngleResult);
+                int  convertDistValue   = RxInfoList.at(1).toUInt(&convertDistResult);
+                int  convertDistValueBaseHeigh  = RxInfoList.at(2).toUInt(&convertDistBaseHeighResult);
 
-                if(convertAngleResult && convertDistResult)
-                {
+                if(convertAngleResult && convertDistResult && convertDistBaseHeighResult)
+                {                    
                     this->VTKInfo.VTKAngle = convertAngleValue;
                     this->VTKInfo.VTKDist  = convertDistValue;
+                    this->VTKInfo.VTKDistBaseHeight = convertDistValueBaseHeigh;
                     this->UpdateInfo();
                 }
             }

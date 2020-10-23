@@ -88,8 +88,9 @@ int main(int argc, char *argv[])
 #if(LICENSE_USED)
     qDebug()<<"License Used:";
     LicenseCheck *licCheck = new LicenseCheck;
-    qDebug()<<"licensed:"<<licCheck->CheckLicenseResult();
-    if(!licCheck->CheckLicenseResult())
+    bool licenseCheckResult = licCheck->CheckLicenseResult();
+    qDebug()<<"licensed:"<<licenseCheckResult;
+    if(!licenseCheckResult)
     {
        return a.exec();
     }

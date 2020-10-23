@@ -30,3 +30,12 @@ double Kalman::KalmanCalc(double NewData)
     this->factor1 = (1 - this->factor2)*Factor1Temp;
     return this->Result;
 }
+
+void Kalman::setResult(double Result)
+{
+    this->Result = Result;
+}
+double Kalman::getResult(void)
+{
+    return this->Result;
+}

@@ -216,7 +216,8 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         }
     #else
         //Got the mark in speed down and no in arc turning
-        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        //if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
         {
             this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
             this->MarkCntRecord++;
@@ -272,13 +273,26 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
                     }
                     else
                     {
-                        qDebug()<<"Diam Cali Cancle:";
-                    }
-
-                    this->NeedOutODOCaliFlag = true;
-                    this->WheelCaliDist = 0;
+						qDebug()<<"Diam Cali Cancle:";
+					}
+					
+					this->NeedOutODOCaliFlag = true;
+					this->WheelCaliDist = 0;
                 }
             }
+        }
+    }
+    else if(str.contains("ModeChange:"))
+    {
+        str = str.replace("ModeChange:","");
+        str = str.replace("\n","");
+        if(str.contains("VTK",Qt::CaseInsensitive))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_VTK);
+        }
+        else
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
         }
     }
     #if(PLATFORM == PLATFORM_R3)
