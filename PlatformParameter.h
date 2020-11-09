@@ -9,6 +9,8 @@
 #define SERIAL_BYPASS                   (1)
 #define BLUETOOTH_SERIAL_USED           (0)
 #define NUM_STATION_USED                (0)
+#define STREAMLIT_USED                  (1)
+#define PNG_INDECATE_OA                 (0)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -639,7 +641,6 @@ typedef struct _VTPInfo_t
     uint16_t PauseTime;
     SpeedCtl_e SpeedCtl;
     ActionOnCrossType_e setAction;
-
 }VTPInfo_t;
 
 typedef struct _VTKInfo_t
@@ -648,6 +649,7 @@ typedef struct _VTKInfo_t
     uint16_t VTKDist;
     int8_t   VTKAngle;
     uint8_t  CtlByte;
+    bool     ToPushFlag;
 }VTKInfo_t;
 
 typedef struct _CtlByteFlag_t
@@ -655,9 +657,9 @@ typedef struct _CtlByteFlag_t
     quint8 dump0 : 1;
     quint8 dump1 : 1;
     quint8 OASetOnStation : 1;
-    quint8 dump3 : 1;
+    quint8 MotorReleaseInWork : 1;
 
-    quint8 dump4 : 1;
+    quint8 OAAvoidOn_Off : 1;
     quint8 UturnDir : 1;//bit5
     quint8 USOAOn_Off : 1;//bit6
     quint8 TOFOAOn_Off : 1;//bit7

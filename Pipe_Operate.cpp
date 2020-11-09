@@ -1,4 +1,5 @@
 #include "ftr_ctr3speedctl.h"
+#include <stdlib.h>
 
 void FTR_CTR3SpeedCtl::OpenPipe(QFile *pipeFile,QIODevice::OpenMode flags)
 {
@@ -295,13 +296,72 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
             this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
         }
     }
-    #if(PLATFORM == PLATFORM_R3)
+    else if(str.contains("ResetWIFI:"))
+    {
+        ResetWIFISlot();
+    }
+    else if(str.contains("WIFISetting:"))
+    {
+        str = str.replace("WIFISetting:","");
+        str = str.replace("\n","");
+
+        QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+
+        if(RxMessageList.size() == 2)
+        {
+            QString ssid = RxMessageList.at(0);
+            QString pwd  = RxMessageList.at(1);
+
+            QString wpaStr = WPA_SUPPLICANT_CONF_HEADER;
+            QString appendSSIDStr = QString("network={\n    ssid=\"%1\"\n    psk=\"%2\"\n    key_mgmt=WPA-PSK\n    priority=10\n}\n").arg(ssid).arg(pwd);
+            wpaStr.append(appendSSIDStr);
+
+            QFile *file = new QFile("/home/pi/ftrCartCtl/wpa_supplicant.conf");
+            if(file->exists()) file->remove();
+            if(file->open(QIODevice::WriteOnly))
+            {
+                file->write(wpaStr.toLocal8Bit().data());
+                file->flush();
+                file->close();
+            }
+            delete file;
+
+            QString cmd = "sudo cp -f /home/pi/ftrCartCtl/wpa_supplicant.conf " + WPA_SUPPLICANT_CONF_FILE_NAME;
+            QProcess *process = new QProcess();
+            process->start(cmd);
+            process->waitForStarted();
+            process->waitForFinished();
+
+            process->start("sync");
+            process->waitForStarted();
+            process->waitForFinished();
+
+            cmd = "wpa_cli -i wlan0 reconfig";
+            process->start(cmd);
+            process->waitForStarted();
+            process->waitForFinished();
+            delete process;
+
+            this->EmitBeepSound(BEEP_TYPE_SHORT_BEEP_2);
+        }
+    }
+#if(PLATFORM == PLATFORM_R3)
     else if(str.contains("AccGyroCali:"))
     {
         //qDebug()<<"toCaliBias:";
         this->imuData->CalcBias();
     }
-    #endif
+#endif
+#if(STREAMLIT_USED)
+    else if(str.contains("StartStreamlit:"))
+    {
+        this->StartStreamlitUISlot();
+    }
+    else if(str.contains("StopStreamlit:"))
+    {
+        this->StopStreamlitUISlot();
+    }
+#endif
 }
 
 #if(PLATFORM == PLATFORM_R3)

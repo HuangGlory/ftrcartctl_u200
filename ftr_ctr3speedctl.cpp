@@ -7,98 +7,6 @@ public:
 
 };
 
-void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
-{
-    QString oldShVersion;
-
-    QFile *file = new QFile(FTRCARTCTL_UPDATE_SH_FILE_NAME);
-    if(file->exists())
-    {
-        if(file->open(QIODevice::ReadOnly))
-        {
-            do
-            {
-                QString shStr = file->readLine();
-                if(shStr.contains("version:"))
-                {
-                    oldShVersion = shStr.replace("#","").replace("\n","");
-                    break;
-                }
-            }while(1);
-            file->close();
-
-            if(oldShVersion != FTRCARTCTL_UPDATE_SH_VERSION)
-            {
-                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<FTRCARTCTL_UPDATE_SH_VERSION;
-                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
-                {
-                    file->seek(0);
-                    file->write(FTRCARTCTL_UPDATE_SH.toUtf8());
-                    file->flush();
-                    file->close();
-                    qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"Modified!";
-                }
-            }
-            else
-            {
-                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"is:"<<FTRCARTCTL_UPDATE_SH_VERSION;
-            }
-        }
-    }
-
-    file->setFileName(EBOX_UPDATE_SH_FILE_NAME);
-    if(file->exists())
-    {
-        if(file->open(QIODevice::ReadOnly))
-        {
-            do
-            {
-                QString shStr = file->readLine();
-                if(shStr.contains("version:"))
-                {
-                    oldShVersion = shStr.replace("#","").replace("\n","");
-                    break;
-                }
-            }while(1);
-            file->close();
-
-            if(oldShVersion != EBOX_UPDATE_SH_VERSION)
-            {
-                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<EBOX_UPDATE_SH_VERSION;
-                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
-                {
-                    file->seek(0);
-                    file->write(EBOX_UPDATE_SH.toUtf8());
-                    file->flush();
-                    file->close();
-                    qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"Modified!";
-                }
-            }
-            else
-            {
-                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"is:"<<EBOX_UPDATE_SH_VERSION;
-            }
-        }
-    }
-
-    //update Lz Python script
-#if(1)
-    QFileInfo *fileInfo= new QFileInfo("/home/pi/ftrCartCtl/UpDateApp.py");
-    if(fileInfo->exists() && (fileInfo->size() != 0))
-    {
-        system("sudo cp -f /home/pi/ftrCartCtl/UpDateApp.py /home/pi/Lz/");
-        system("sync;sync;");
-        qDebug()<<"UpDateApp.py modified:";
-    }
-    else
-    {
-        qDebug()<<"UpDateApp.py File Err:";
-    }
-    delete fileInfo;
-#endif
-    delete file;
-}
-
 FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new FTR_CTR3SpeedCtlData)
 {
     qDebug()<<"FtrCartCtl Thread ID:"<<QThread::currentThreadId();
@@ -165,8 +73,17 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->CartWantToPNGState          = false;//this->CartInPauseState;
 
     this->SetODOFactor();
-    this->GetPipeName(this->JsonFileName);
+//    this->GetPipeName(this->JsonFileName);
+    this->SettingParameterFromJson.RCCtlByte.CtlByte = 0x00;
+    this->SettingParameterFromJson.VTPCtlByte.CtlByte = 0x00;
+    this->SettingParameterFromJson.VTKCtlByte.CtlByte = 0x00;
+    this->SettingParameterFromJson.MarchCtlByte.CtlByte = 0x00;
+
     this->GetSettingParameterFromJson(this->SettingJsonFileName);
+
+    this->MainInputPipeName = MAIN_INPUT_DEFAULT_PIPE_NAME;
+    this->VTKOutputPipeName = VTK_OUTPUT_DEFAULT_PIPE_NAME;
+    this->VTPOutputPipeName = VTP_OUTPUT_DEFAULT_PIPE_NAME;
 
     this->MainInputPipeFile         = new QFile(this->MainInputPipeName);
     this->StateInfoInputPipeFile    = new QFile(FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME);
@@ -398,6 +315,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->CartStateCtlProcess,SIGNAL(BroadcastCartStateSignal(CartState_e)),this,SLOT(WriteMainPipeSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(SettingOAToggleSignal(CartState_e)),this,SLOT(SettingOAToggleSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(PNGButtonToggleSignal()),this,SLOT(PNGButtonToggleSlot()));
+    connect(this->CartStateCtlProcess,SIGNAL(SetToPushInWorkSignal()),this,SLOT(SetToPushInWorkSlot()));
 #if(BLUETOOTH_SERIAL_USED)
     connect(this->BTCtlProcess,SIGNAL(BTRxRCCMDSignal(RCCMD_e)),this,SLOT(BTRCCmdSlot(RCCMD_e)));
     connect(this->Time4RCTimeout,SIGNAL(timeout()),this,SLOT(Time4RCTimeoutSlot()));
@@ -408,14 +326,91 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     //this->VTKProcess->stop();
 
     connect(this,SIGNAL(toCalcCapacitySignal(double)),this,SLOT(calcCapacitySlot(double)));
-    connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));    
+    connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));
+
+#if(STREAMLIT_USED)
+    this->streamlitAppPID = 0;
+    this->CreateStreamlitAppSlot();
+    this->streamlitProcess = new QProcess;
+    connect(this->streamlitProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_readoutputSlot()) );
+#endif
 }
+
+#if(STREAMLIT_USED)
+void FTR_CTR3SpeedCtl::on_readoutputSlot()
+{
+//    this->ExternURLStr.append(this->streamlitProcess->readAllStandardOutput());
+    qDebug()<<this->streamlitProcess->readAllStandardOutput().data();   //将输出信息读取到编辑框
+}
+
+void FTR_CTR3SpeedCtl::CreateStreamlitAppSlot(void)
+{
+    QFile *file = new QFile(STREAMLITAPP_FILE_NAME);
+    if(!file->exists())
+    {
+        if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
+        {
+            file->write(STREAMLITAPP.toUtf8());
+            file->flush();
+            file->close();
+            qDebug()<<STREAMLITAPP_FILE_NAME<<"Created!";
+
+            QString cmd="sudo chmod 755 " + STREAMLITAPP_FILE_NAME;
+            system(cmd.toUtf8());
+
+        }
+    }
+    else
+    {
+        qDebug()<<"streamlitApp Exist:";
+    }
+    delete file;
+}
+void FTR_CTR3SpeedCtl::StartStreamlitUISlot(void)
+{
+//    if(!this->streamlitProcess->isOpen() || (0 ==this->streamlitAppPID))
+    if(0 ==this->streamlitAppPID)
+    {
+//        this->streamlitProcess->startDetached("/home/pi/ftrCartCtl/streamlitApp run /home/pi/ftrCartCtl/ui.py");
+        this->streamlitProcess->setProgram("/home/pi/ftrCartCtl/streamlitApp");
+        this->streamlitProcess->setArguments({"run","/home/pi/ftrCartCtl/ui.py"});
+        this->streamlitProcess->setWorkingDirectory("/home/pi/ftrCartCtl/");
+        this->streamlitProcess->startDetached(&this->streamlitAppPID);
+
+        this->streamlitProcess->waitForStarted();
+        qDebug()<<"UI Start..."<<this->streamlitAppPID;
+    }
+    else
+    {
+        qDebug()<<"UI Has Started:";
+    }
+}
+void FTR_CTR3SpeedCtl::StopStreamlitUISlot(void)
+{
+//    QString strCommand = "sudo kill $(ps -ef|grep streamlitApp |grep -v grep |awk '{print $2}')";
+
+//    if(this->streamlitProcess->isOpen() || this->streamlitAppPID)
+    if( this->streamlitAppPID)
+    {
+        QProcess::startDetached("kill",{QString::number(this->streamlitAppPID)});
+
+//        this->streamlitProcess->close();
+        this->streamlitAppPID = 0;
+        qDebug()<<"Stop streamlit...";
+    }
+    else
+    {
+        qDebug()<<"UI no Run:";
+    }
+}
+#endif
 
 void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
 {
     //this->TaskFlag.TaskFlagNeedToChangePNGStete = true;
     this->CartWantToPNGState = !this->CartInPauseState;
     ++this->cnt4IntoConfigModePNGToggle;
+    if(!this->Wait4CameraReadyIndecateFlag) ++this->cnt4ResetWIFIPNGToggle;
 #if(0)
     if(this->SocketReadyFlag)
     {
@@ -680,6 +675,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 {
                     this->tcpSocketSendMessageSlot("ExitConfig:");
                 }
+
                 qDebug()<<"ExitConfigCPG:";
             }
         }
@@ -696,6 +692,18 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->InSetOAGlobalFlag = true;
                 }
             }
+
+            if(this->CartState == STATE_VTK)
+            {
+                if(this->cnt4ResetWIFIPNGToggle >= 10)
+                {
+                    qDebug()<<"ResetWIFI TRIG:";
+                    this->ResetWIFISlot();
+                    this->cnt4ResetWIFIPNGToggle = 0;
+                }
+                if(!this->VTKInIdleFlag) this->cnt4ResetWIFIPNGToggle = 0;
+            }
+
             if(this->IntoConfigureModeFlag)
             {
                 this->WriteMainPipeSlot(STATE_SB);
@@ -742,12 +750,20 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                     //this->Time2SendData->stop();
                     this->cnt4IntoConfigModePNGToggle = 0;
+                    this->cnt4ResetWIFIPNGToggle = 0;
 
                     this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
 
                     this->VTKIdleIntoPauseFlag = false;
+
+                    this->CartStateCtlProcess->SetVTKOAStateFlag(false);
+                    this->CartStateCtlProcess->SetVTPOAStateFlag(false);
+
+                #if(STREAMLIT_USED)
+                    this->StartStreamlitUISlot();
+                #endif
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -865,6 +881,14 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     //this->Time2SendData->start(SEND_DATA_PER);
 
                     this->VTKIdleIntoPauseFlag = false;
+
+                    this->CartStateCtlProcess->SetVTKOAStateFlag((bool)(0xC0 & this->VTKInfo.CtlByte));
+
+                #if(STREAMLIT_USED)
+                    this->StopStreamlitUISlot();
+                #endif
+
+                    this->VTKInfo.ToPushFlag = false;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();
@@ -899,6 +923,12 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
                     //this->FaceDirFlag                   = true;
                     //this->StationName4VTP               = 0;
+
+                    this->CartStateCtlProcess->SetVTPOAStateFlag((bool)(0xC0 & this->VTPInfo.CtlByte));
+
+                #if(STREAMLIT_USED)
+                    this->StopStreamlitUISlot();
+                #endif
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
@@ -937,6 +967,10 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
 
                     this->Wait4CameraReadyIndecateFlag = true;
                     this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
+
+                #if(STREAMLIT_USED)
+                    this->StopStreamlitUISlot();
+                #endif
                 }
             }
 
@@ -1025,6 +1059,7 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         }
         else
         {
+        #if(PNG_INDECATE_OA)
             if( ((this->CartState == STATE_VTK) && (0xC0 & this->VTKInfo.CtlByte)) ||\
                 ((this->CartState == STATE_VTP) && (0xC0 & this->VTPInfo.CtlByte)))
             {
@@ -1034,6 +1069,17 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
             {
                 this->CartStateCtlProcess->BSP_SetLed(PNG_LED,0);
             }
+        #else
+            if( ((this->CartState == STATE_VTK) && (!this->VTKInIdleFlag)) ||\
+                ((this->CartState == STATE_VTP) && (0xC0 & this->VTPInfo.CtlByte)))
+            {
+                this->CartStateCtlProcess->BSP_LedToggle(PNG_LED);
+            }
+            else
+            {
+                this->CartStateCtlProcess->BSP_SetLed(PNG_LED,0);
+            }
+        #endif
         }
 
     #if(1)
@@ -1553,29 +1599,6 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 //把json文档转换为json对象
                 QJsonObject obj=doc.object();
                 this->SettingJsonErrorFlag = false;
-            #if(0)
-                //wheel diam
-                if(obj.contains("left_wheel_diam"))
-                {
-                    this->SettingParameterFromJson.LeftDiam = obj.value("left_wheel_diam").toDouble();
-                    this->LeftWheelDiam = this->SettingParameterFromJson.LeftDiam;
-                    qDebug()<<"LWD"<<this->SettingParameterFromJson.LeftDiam;
-                }
-
-                if(obj.contains("right_wheel_diam"))
-                {
-                    this->SettingParameterFromJson.RightDiam = obj.value("right_wheel_diam").toDouble();
-                    this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
-                     qDebug()<<"RWD"<<this->SettingParameterFromJson.RightDiam;
-                }
-
-                if(obj.contains("encoder_cnt"))
-                {
-                    this->EncoderCnt = obj.value("encoder_cnt").toInt();
-                     qDebug()<<"ECN"<<this->EncoderCnt;
-                }
-                //end wheel diam
-            #endif
 
                 if(obj.contains("Recover_OA_Timeout"))
                 {
@@ -1729,6 +1752,7 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                     this->IdleToPauseInVTKTimeoutCnt = obj.value("idle_to_pause_time").toInt();
                     qDebug()<<"idle_to_pause_time"<<this->IdleToPauseInVTKTimeoutCnt;
                 }
+
                 if(obj.contains("tof_oa_vtk"))
                 {
                     this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off = obj.value("tof_oa_vtk").toBool();
@@ -1738,6 +1762,11 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 {
                     this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off = obj.value("us_oa_vtk").toBool();
                     qDebug()<<"us_oa_vtk"<<this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off;
+                }
+                if(obj.contains("oa_avoiding_vtk"))
+                {
+                    this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OAAvoidOn_Off = obj.value("oa_avoiding_vtk").toBool();
+                    qDebug()<<"oa_avoiding_vtk"<<this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OAAvoidOn_Off;
                 }
             //end VTK parameter setting
 
@@ -1822,6 +1851,7 @@ bool FTR_CTR3SpeedCtl::GetPipeName(QString jsonFile)
                     qDebug()<<"RWD"<<this->SettingParameterFromJson.RightDiam;
                }
             #endif
+
                if(obj.contains("pipe"))
                {
                    QJsonObject subObj = obj.value("pipe").toObject();
@@ -2283,6 +2313,37 @@ void FTR_CTR3SpeedCtl::lowPowerToShutDownSystemSlot(void)
     system("shutdown -h now");
 }
 
+void FTR_CTR3SpeedCtl::ResetWIFISlot(void)
+{
+    QFile *file = new QFile("/home/pi/ftrCartCtl/wpa_supplicant.conf");
+    if(file->exists()) file->remove();
+    if(file->open(QIODevice::WriteOnly))
+    {
+        file->write(WPA_SUPPLICANT_CONF.toLocal8Bit().data());
+        file->flush();
+        file->close();
+    }
+    delete file;
+
+    QString cmd = "sudo cp -f /home/pi/ftrCartCtl/wpa_supplicant.conf " + WPA_SUPPLICANT_CONF_FILE_NAME;
+    QProcess *process = new QProcess();
+    process->start(cmd);
+    process->waitForStarted();
+    process->waitForFinished();
+
+    process->start("sync");
+    process->waitForStarted();
+    process->waitForFinished();
+
+    cmd = "wpa_cli -i wlan0 reconfig";
+    process->start(cmd);
+    process->waitForStarted();
+    process->waitForFinished();
+    delete process;
+
+    this->EmitBeepSound(BEEP_TYPE_LONG_BEEP_3);
+}
+
 void FTR_CTR3SpeedCtl::calcCapacitySlot(double voltage)
 {
     const double batCoef[6] = {-0.0021095004 ,  0.4009820894 , -30.4476371198 ,  1154.4151180135 , -21853.1489934864 , 165216.3203402679};
@@ -2356,6 +2417,104 @@ ArcInfo_t FTR_CTR3SpeedCtl::CalcArcInfoSlot(PointAxis_t p1,PointAxis_t p2,PointA
     }
 
     return arc;
+}
+
+void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
+{
+    QString oldShVersion;
+
+    QFile *file = new QFile(FTRCARTCTL_UPDATE_SH_FILE_NAME);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString shStr = file->readLine();
+                if(shStr.contains("version:"))
+                {
+                    oldShVersion = shStr.replace("#","").replace("\n","");
+                    break;
+                }
+            }while(1);
+            file->close();
+
+            if(oldShVersion != FTRCARTCTL_UPDATE_SH_VERSION)
+            {
+                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<FTRCARTCTL_UPDATE_SH_VERSION;
+                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
+                {
+                    file->seek(0);
+                    file->write(FTRCARTCTL_UPDATE_SH.toUtf8());
+                    file->flush();
+                    file->close();
+                    qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"Modified!";
+                }
+            }
+            else
+            {
+                qDebug()<<FTRCARTCTL_UPDATE_SH_FILE_NAME<<"is:"<<FTRCARTCTL_UPDATE_SH_VERSION;
+            }
+        }
+    }
+
+    file->setFileName(EBOX_UPDATE_SH_FILE_NAME);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString shStr = file->readLine();
+                if(shStr.contains("version:"))
+                {
+                    oldShVersion = shStr.replace("#","").replace("\n","");
+                    break;
+                }
+            }while(1);
+            file->close();
+
+            if(oldShVersion != EBOX_UPDATE_SH_VERSION)
+            {
+                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<oldShVersion<<" ==> "<<EBOX_UPDATE_SH_VERSION;
+                if(file->open(QIODevice::WriteOnly|QIODevice::Truncate))
+                {
+                    file->seek(0);
+                    file->write(EBOX_UPDATE_SH.toUtf8());
+                    file->flush();
+                    file->close();
+                    qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"Modified!";
+                }
+            }
+            else
+            {
+                qDebug()<<EBOX_UPDATE_SH_FILE_NAME<<"is:"<<EBOX_UPDATE_SH_VERSION;
+            }
+        }
+    }
+
+    //update Lz Python script
+#if(1)
+    QFileInfo *fileInfo= new QFileInfo("/home/pi/ftrCartCtl/UpDateApp.py");
+    if(fileInfo->exists() && (fileInfo->size() != 0))
+    {
+        system("sudo cp -f /home/pi/ftrCartCtl/UpDateApp.py /home/pi/Lz/");
+        system("sync;sync;");
+        qDebug()<<"UpDateApp.py modified:";
+    }
+    else
+    {
+        qDebug()<<"UpDateApp.py File Err:";
+    }
+    delete fileInfo;
+#endif
+    delete file;
+}
+
+void FTR_CTR3SpeedCtl::SetToPushInWorkSlot()
+{    
+    this->VTKInfo.ToPushFlag = !this->VTKInfo.ToPushFlag;
+    qDebug()<<"SetToPushInWork:"<<this->VTKInfo.ToPushFlag;
 }
 
 FTR_CTR3SpeedCtl::~FTR_CTR3SpeedCtl()

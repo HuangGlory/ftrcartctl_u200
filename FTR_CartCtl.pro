@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.6.04.U200@20201019
+TARGET = ftrCartCtl_V0.0.7.01.U200@20201103
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -61,5 +61,7 @@ HEADERS += \
     readvtkpipe_thread.h \
     readvtppipe_thread.h \
     sb_thread.h \
+    streamlitApp.h \
     updateScript.h \
-    vtk_thread.h
+    vtk_thread.h \
+    wifiConf.h

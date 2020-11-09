@@ -162,6 +162,7 @@ void CartStateSetting::LEDBlinkSpeedCtlTimerSlot()
             if(this->CameraReadyFlag && (!this->VTKInIdleFlag))
             {
                 this->BSP_LedToggle(RC_LED);
+                if(this->OAStateFlag) this->BSP_LedToggle(SB_LED);
             }
             else
             {
@@ -176,6 +177,7 @@ void CartStateSetting::LEDBlinkSpeedCtlTimerSlot()
             if(this->CameraReadyFlag)
             {
                 this->BSP_LedToggle(VTP_LED);
+                if(this->OAStateFlag) this->BSP_LedToggle(SB_LED);
             }
             else
             {
@@ -319,11 +321,27 @@ void CartStateSetting::LoopTimerSlot()
                 }
                 else if(this->WhichKey.contains("VTK_KEY"))
                 {
-                    this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTK):(STATE_SB);
+                    //this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTK):(STATE_SB);
+                    if(this->PreCartState == STATE_SB)
+                    {
+                        this->CurrentCartState = STATE_VTK;
+                    }
+                    else if(this->CurrentCartState == STATE_VTK)
+                    {
+                        emit this->SetToPushInWorkSignal();
+                    }
                 }
                 else//"VTP_KEY
                 {
-                    this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTP):(STATE_SB);
+                    //this->CurrentCartState = (this->PreCartState == STATE_SB)?(STATE_VTP):(STATE_SB);
+                    if(this->PreCartState == STATE_SB)
+                    {
+                        this->CurrentCartState = STATE_VTP;
+                    }
+                    else if(this->CurrentCartState == STATE_VTP)
+                    {
+                        emit this->SetToPushInWorkSignal();
+                    }
                 }
                 this->WhichKey.clear();
             }
@@ -422,6 +440,21 @@ void CartStateSetting::SetVTKInIdleFlag(bool state)
     this->BSP_SetLed(RC_LED,LOW);
     this->BSP_SetLed(VTP_LED,LOW);
 }
+void CartStateSetting::SetVTKOAStateFlag(bool state)
+{
+    this->OAStateFlag = state;
+    this->BSP_SetLed(SB_LED,LOW);
+    this->BSP_SetLed(RC_LED,LOW);
+    this->BSP_SetLed(VTP_LED,LOW);
+}
+void CartStateSetting::SetVTPOAStateFlag(bool state)
+{
+    this->OAStateFlag = state;
+    this->BSP_SetLed(SB_LED,LOW);
+    this->BSP_SetLed(RC_LED,LOW);
+    this->BSP_SetLed(VTP_LED,LOW);
+}
+
 
 int8_t CartStateSetting::ModeChangeBaseJson(QString mode,int value)
 {

@@ -175,7 +175,7 @@ signals:
     void BroadcastCartStateSignal(CartState_e);
     void PNGButtonToggleSignal();
     void SettingOAToggleSignal(CartState_e);
-
+    void SetToPushInWorkSignal();
 public slots:
     void LoopTimerSlot(void);
     void LEDBlinkSpeedCtlTimerSlot(void);
@@ -186,6 +186,8 @@ public slots:
     void SetInConfigModeFlagSlot(bool state);
     void SetCameraReadyFlagSlot(bool state);
     void SetVTKInIdleFlag(bool state);
+    void SetVTKOAStateFlag(bool state);
+    void SetVTPOAStateFlag(bool state);
 public:
     QString saveFileNamea;
     QTimer *LoopTimer;
@@ -204,6 +206,7 @@ public:
     bool InConfigFlag;
     bool CameraReadyFlag;
     bool VTKInIdleFlag;
+    bool OAStateFlag;
 };
 
 #endif // CARTSTATESETTING_H

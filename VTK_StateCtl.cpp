@@ -8,6 +8,7 @@ void FTR_CTR3SpeedCtl::VTK_Enter()//CMD = 0xED
 {
     this->SendCMD(CMD_ENTER_VTK,this->SettingParameterFromJson.VTKCtlByte.CtlByte);
     this->VTKInfo.CtlByte = this->SettingParameterFromJson.VTKCtlByte.CtlByte;
+    qDebug()<<"InitCtlByte:"<<hex<<this->SettingParameterFromJson.VTKCtlByte.CtlByte;
 }
 void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
 {
@@ -24,6 +25,15 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
     ByteArray[6]=this->VTKInfo.VTKDist & 0xFF;
     ByteArray[7]=this->VTKInfo.CtlByte;
 
+    if(this->VTKInfo.ToPushFlag)
+    {
+        ByteArray[7]=this->VTKInfo.CtlByte | 0x08;
+    }
+    else
+    {
+        ByteArray[7]=this->VTKInfo.CtlByte & (~0x08);
+    }
+//    qDebug("ctlByte:%x,%d",ByteArray.at(7),this->VTKInfo.ToPushFlag);
 #if(PLATFORM == PLATFORM_R3)
     ByteArray[8]=(this->pose.pitch >> 8) & 0xFF;
     ByteArray[9]=this->pose.pitch & 0xFF;

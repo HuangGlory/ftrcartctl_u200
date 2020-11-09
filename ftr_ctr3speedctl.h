@@ -26,6 +26,8 @@
 #include <QDir>
 
 #include <updateScript.h>
+#include <wifiConf.h>
+#include <streamlitApp.h>
 
 #include <QTcpServer>  //监听套接字
 #include <QTcpSocket> //通信套接字
@@ -55,9 +57,24 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.6.04.U200@20201019\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.7.01.U200@20201103\n\n")
 /***********************
  * log:
+ * Ver:0.0.7.01.U200@20201103
+ * 1.增加更新软件时断点继传
+ * 2.settings.json增加绕障开关oa_avoiding_vtk
+ * 3.在VTK or VTP mode下可以motor release
+ *
+ * Ver:0.0.7.00.U200@20201030
+ * 1.增加streamlit做ui
+ * 2.不读config.json的三个pipe的名称
+ * 3.修改OA状态提示灯，原来用P&G灯提示，改为用SBled提示
+ * 4.修改P&G灯用来提示Follow的状态（Pause/Idle/Normal)
+ *
+ * Ver:0.0.6.05.U200@20201023
+ * 1.增加重置wifi功能
+ * 2.ftrCartCtl 更新脚本增加check autoRun.sh file 是否为空
+ *
  * Ver:0.0.6.04.U200@20201019
  * 1.follow增加一笔身高距离
  *
@@ -330,6 +347,14 @@ public:
     //static void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 
 public slots:
+    void SetToPushInWorkSlot();
+#if(STREAMLIT_USED)
+    void on_readoutputSlot(void);
+    void CreateStreamlitAppSlot(void);
+    void StartStreamlitUISlot(void);
+    void StopStreamlitUISlot(void);
+#endif
+
 #if(BLUETOOTH_SERIAL_USED)
     void Time4RCTimeoutSlot(void);
 #endif
@@ -381,6 +406,8 @@ public slots:
 
     void lowPowerToShutDownSystemSlot(void);
     void calcCapacitySlot(double voltage);
+
+    void ResetWIFISlot(void);
 signals:
     //void BroadcastCartStateSignal(CartState_e);
     //void ReadVTPInfoSignal();
@@ -474,6 +501,7 @@ private:
     double          LeftWheelDiam;
     double          RightWheelDiam;
     quint8          cnt4IntoConfigModePNGToggle;
+    quint8          cnt4ResetWIFIPNGToggle;
     quint8          RecoverOATimeout;
     int16_t         LeftSettingSpeed;
     int16_t         RightSettingSpeed;
@@ -541,6 +569,11 @@ private:
 
     quint8          stationsNum;
     quint16         distBtStation;
+
+#if(STREAMLIT_USED)
+    QProcess *streamlitProcess;
+    qint64  streamlitAppPID;
+#endif
 };
 
 #endif // FTR_CTR3SPEEDCTL_H
