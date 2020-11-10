@@ -50,7 +50,7 @@ void ReadVTKPipe_Thread::run()
                 int  convertDistValueBaseHeigh  = RxInfoList.at(2).toUInt(&convertDistBaseHeighResult);
 
                 if(convertAngleResult && convertDistResult && convertDistBaseHeighResult)
-                {                    
+                {
                     this->VTKInfo.VTKAngle = convertAngleValue;
                     this->VTKInfo.VTKDist  = convertDistValue;
                     this->VTKInfo.VTKDistBaseHeight = convertDistValueBaseHeigh;

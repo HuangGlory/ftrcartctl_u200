@@ -57,9 +57,12 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.7.01.U200@20201103\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.7.02.U200@20201110\n\n")
 /***********************
  * log:
+ * Ver:0.0.7.02.U200@20201110
+ * 1.增加过滤无效点信息at vtp
+ * 2.重定义加减速
  * Ver:0.0.7.01.U200@20201103
  * 1.增加更新软件时断点继传
  * 2.settings.json增加绕障开关oa_avoiding_vtk

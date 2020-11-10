@@ -1,5 +1,6 @@
 #include "ftr_ctr3speedctl.h"
 #include <stdlib.h>
+#include <QPoint>
 
 void FTR_CTR3SpeedCtl::OpenPipe(QFile *pipeFile,QIODevice::OpenMode flags)
 {
@@ -129,7 +130,31 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         qDebug()<<str;
     }
     //quint8 CalcArcIndex = 0,NumCnt = 0;
-
+#if(1)
+    QVector<QPoint> pointInfo;
+    for(quint8 i = 0;i<6;i++)
+    {
+        if(TAPE_ANGLE_LOST_VALUE != VTPInfo.PointOnTape[i])
+        {
+            QPoint validPoint = QPoint(i,VTPInfo.PointOnTape[i]);
+            pointInfo.append(validPoint);
+        }
+    }
+    if(pointInfo.size() == 1)//only one point it's invalid point
+    {
+        VTPInfo.PointOnTape[pointInfo.at(0).x()] = TAPE_ANGLE_LOST_VALUE;
+//        qDebug()<<"GotInvalid:"<<pointInfo.at(0);
+    }
+    else if(pointInfo.size() == 2)
+    {
+        if(abs(VTPInfo.PointOnTape[pointInfo.at(0).x()] - VTPInfo.PointOnTape[pointInfo.at(1).x()]) > 100)//full sceen/4
+        {
+            VTPInfo.PointOnTape[pointInfo.at(0).x()] = TAPE_ANGLE_LOST_VALUE;
+            VTPInfo.PointOnTape[pointInfo.at(1).x()] = TAPE_ANGLE_LOST_VALUE;
+            qDebug()<<"GotInvalidPoint:2";
+        }
+    }
+#endif
     if(this->Wait4CameraReadyIndecateFlag) this->CartStateCtlProcess->SetCameraReadyFlagSlot(true);//camera ready
     this->Wait4CameraReadyIndecateFlag = false;
     for(quint8 i = 0;i<7;i++)
@@ -139,7 +164,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
 
 #if(PLATFORM == PLATFORM_U250)
     //speed up&down
-    if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) && (this->StartActionFlag || this->InArcTurningFlag))
+    if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) || (this->StartActionFlag || this->InArcTurningFlag))
     {
         this->VTPInfo.SpeedCtl = SPEED_CTL_NULL;
     }
@@ -148,7 +173,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     {
         this->VTPInfo.SpeedCtl = VTPInfo.SpeedCtl;
     }
-
+    //qDebug()<<"SCTL:"<<this->VTPInfo.SpeedCtl;
     #if(NUM_STATION_USED)
         /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
         {
