@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CartStateSetting_t {
-    QByteArrayData data[18];
-    char stringdata0[311];
+    QByteArrayData data[19];
+    char stringdata0[334];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -40,27 +40,28 @@ QT_MOC_LITERAL(4, 55, 11), // "CartState_e"
 QT_MOC_LITERAL(5, 67, 21), // "PNGButtonToggleSignal"
 QT_MOC_LITERAL(6, 89, 21), // "SettingOAToggleSignal"
 QT_MOC_LITERAL(7, 111, 21), // "SetToPushInWorkSignal"
-QT_MOC_LITERAL(8, 133, 13), // "LoopTimerSlot"
-QT_MOC_LITERAL(9, 147, 25), // "LEDBlinkSpeedCtlTimerSlot"
-QT_MOC_LITERAL(10, 173, 10), // "KeyISRSlot"
-QT_MOC_LITERAL(11, 184, 20), // "SetCartStateExternal"
-QT_MOC_LITERAL(12, 205, 23), // "SetInConfigModeFlagSlot"
-QT_MOC_LITERAL(13, 229, 5), // "state"
-QT_MOC_LITERAL(14, 235, 22), // "SetCameraReadyFlagSlot"
-QT_MOC_LITERAL(15, 258, 16), // "SetVTKInIdleFlag"
-QT_MOC_LITERAL(16, 275, 17), // "SetVTKOAStateFlag"
-QT_MOC_LITERAL(17, 293, 17) // "SetVTPOAStateFlag"
+QT_MOC_LITERAL(8, 133, 22), // "TKeyClickedInVTKSignal"
+QT_MOC_LITERAL(9, 156, 13), // "LoopTimerSlot"
+QT_MOC_LITERAL(10, 170, 25), // "LEDBlinkSpeedCtlTimerSlot"
+QT_MOC_LITERAL(11, 196, 10), // "KeyISRSlot"
+QT_MOC_LITERAL(12, 207, 20), // "SetCartStateExternal"
+QT_MOC_LITERAL(13, 228, 23), // "SetInConfigModeFlagSlot"
+QT_MOC_LITERAL(14, 252, 5), // "state"
+QT_MOC_LITERAL(15, 258, 22), // "SetCameraReadyFlagSlot"
+QT_MOC_LITERAL(16, 281, 16), // "SetVTKInIdleFlag"
+QT_MOC_LITERAL(17, 298, 17), // "SetVTKOAStateFlag"
+QT_MOC_LITERAL(18, 316, 17) // "SetVTPOAStateFlag"
 
     },
     "CartStateSetting\0KeyISRSignl\0\0"
     "BroadcastCartStateSignal\0CartState_e\0"
     "PNGButtonToggleSignal\0SettingOAToggleSignal\0"
-    "SetToPushInWorkSignal\0LoopTimerSlot\0"
-    "LEDBlinkSpeedCtlTimerSlot\0KeyISRSlot\0"
-    "SetCartStateExternal\0SetInConfigModeFlagSlot\0"
-    "state\0SetCameraReadyFlagSlot\0"
-    "SetVTKInIdleFlag\0SetVTKOAStateFlag\0"
-    "SetVTPOAStateFlag"
+    "SetToPushInWorkSignal\0TKeyClickedInVTKSignal\0"
+    "LoopTimerSlot\0LEDBlinkSpeedCtlTimerSlot\0"
+    "KeyISRSlot\0SetCartStateExternal\0"
+    "SetInConfigModeFlagSlot\0state\0"
+    "SetCameraReadyFlagSlot\0SetVTKInIdleFlag\0"
+    "SetVTKOAStateFlag\0SetVTPOAStateFlag"
 };
 #undef QT_MOC_LITERAL
 
@@ -70,30 +71,31 @@ static const uint qt_meta_data_CartStateSetting[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      14,   14, // methods
+      15,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
        0,       // flags
-       5,       // signalCount
+       6,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    0,   84,    2, 0x06 /* Public */,
-       3,    1,   85,    2, 0x06 /* Public */,
-       5,    0,   88,    2, 0x06 /* Public */,
-       6,    1,   89,    2, 0x06 /* Public */,
-       7,    0,   92,    2, 0x06 /* Public */,
+       1,    0,   89,    2, 0x06 /* Public */,
+       3,    1,   90,    2, 0x06 /* Public */,
+       5,    0,   93,    2, 0x06 /* Public */,
+       6,    1,   94,    2, 0x06 /* Public */,
+       7,    0,   97,    2, 0x06 /* Public */,
+       8,    0,   98,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       8,    0,   93,    2, 0x0a /* Public */,
-       9,    0,   94,    2, 0x0a /* Public */,
-      10,    0,   95,    2, 0x0a /* Public */,
-      11,    1,   96,    2, 0x0a /* Public */,
-      12,    1,   99,    2, 0x0a /* Public */,
-      14,    1,  102,    2, 0x0a /* Public */,
-      15,    1,  105,    2, 0x0a /* Public */,
-      16,    1,  108,    2, 0x0a /* Public */,
-      17,    1,  111,    2, 0x0a /* Public */,
+       9,    0,   99,    2, 0x0a /* Public */,
+      10,    0,  100,    2, 0x0a /* Public */,
+      11,    0,  101,    2, 0x0a /* Public */,
+      12,    1,  102,    2, 0x0a /* Public */,
+      13,    1,  105,    2, 0x0a /* Public */,
+      15,    1,  108,    2, 0x0a /* Public */,
+      16,    1,  111,    2, 0x0a /* Public */,
+      17,    1,  114,    2, 0x0a /* Public */,
+      18,    1,  117,    2, 0x0a /* Public */,
 
  // signals: parameters
     QMetaType::Void,
@@ -101,17 +103,18 @@ static const uint qt_meta_data_CartStateSetting[] = {
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 4,    2,
     QMetaType::Void,
+    QMetaType::Void,
 
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 4,    2,
-    QMetaType::Void, QMetaType::Bool,   13,
-    QMetaType::Void, QMetaType::Bool,   13,
-    QMetaType::Void, QMetaType::Bool,   13,
-    QMetaType::Void, QMetaType::Bool,   13,
-    QMetaType::Void, QMetaType::Bool,   13,
+    QMetaType::Void, QMetaType::Bool,   14,
+    QMetaType::Void, QMetaType::Bool,   14,
+    QMetaType::Void, QMetaType::Bool,   14,
+    QMetaType::Void, QMetaType::Bool,   14,
+    QMetaType::Void, QMetaType::Bool,   14,
 
        0        // eod
 };
@@ -127,15 +130,16 @@ void CartStateSetting::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 2: _t->PNGButtonToggleSignal(); break;
         case 3: _t->SettingOAToggleSignal((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
         case 4: _t->SetToPushInWorkSignal(); break;
-        case 5: _t->LoopTimerSlot(); break;
-        case 6: _t->LEDBlinkSpeedCtlTimerSlot(); break;
-        case 7: _t->KeyISRSlot(); break;
-        case 8: _t->SetCartStateExternal((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
-        case 9: _t->SetInConfigModeFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
-        case 10: _t->SetCameraReadyFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
-        case 11: _t->SetVTKInIdleFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
-        case 12: _t->SetVTKOAStateFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
-        case 13: _t->SetVTPOAStateFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 5: _t->TKeyClickedInVTKSignal(); break;
+        case 6: _t->LoopTimerSlot(); break;
+        case 7: _t->LEDBlinkSpeedCtlTimerSlot(); break;
+        case 8: _t->KeyISRSlot(); break;
+        case 9: _t->SetCartStateExternal((*reinterpret_cast< CartState_e(*)>(_a[1]))); break;
+        case 10: _t->SetInConfigModeFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 11: _t->SetCameraReadyFlagSlot((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 12: _t->SetVTKInIdleFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 13: _t->SetVTKOAStateFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 14: _t->SetVTPOAStateFlag((*reinterpret_cast< bool(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -175,6 +179,13 @@ void CartStateSetting::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
                 return;
             }
         }
+        {
+            using _t = void (CartStateSetting::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CartStateSetting::TKeyClickedInVTKSignal)) {
+                *result = 5;
+                return;
+            }
+        }
     }
 }
 
@@ -207,13 +218,13 @@ int CartStateSetting::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 15)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 15;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 15)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 14;
+        _id -= 15;
     }
     return _id;
 }
@@ -248,6 +259,12 @@ void CartStateSetting::SettingOAToggleSignal(CartState_e _t1)
 void CartStateSetting::SetToPushInWorkSignal()
 {
     QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
+}
+
+// SIGNAL 5
+void CartStateSetting::TKeyClickedInVTKSignal()
+{
+    QMetaObject::activate(this, &staticMetaObject, 5, nullptr);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE

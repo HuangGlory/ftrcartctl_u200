@@ -38,7 +38,7 @@ void ReadVTPPipe_Thread::run()
             VTPInfoStr = VTPInfoStr.replace("\n","");
 
             QStringList RxInfoList = VTPInfoStr.split(",", QString::SkipEmptyParts);
-            //qDebug()<<RxInfoList;
+//            qDebug()<<RxInfoList;
         #if(PLATFORM == PLATFORM_U250)
             if(11 == RxInfoList.size())//7points,SpeedUp/Down,StationName,ToStationDist,10*10Mark
             {

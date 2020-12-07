@@ -18,8 +18,16 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
 
-    //this->FaceDirFlag                   = true;
-    //this->StationName4VTP               = 0;
+    this->stationInfoToSocket = "";
+    this->retrySendStationInfoToSocketFlag = false;
+
+    this->defaultFixedDist = DEFAULT_FIXED_DIST;
+    this->remainDistToStation = 0;
+    this->usedDefaultFixedDistFlag = true;
+
+    this->inBuildMapModeFlag            = false;
+    this->FaceDirFlag                   = true;
+    this->StationName4VTP               = 0;
     this->PauseToSBInVTKTimeoutCnt      = PAUSE_TO_SB_TIME_DEFAULT;
     this->IdleToPauseInVTKTimeoutCnt     = IDLE_TO_PAUSE_TIME_DEFAULT;
 
@@ -112,6 +120,16 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->BTCtlProcess              = new BluetoothSerialPort;
 #endif
 
+#if(STREAMLIT_USED)
+    this->streamlitKeepRunFlag = false;
+    this->streamlitAppPID = 0;
+    this->CreateStreamlitAppSlot();
+    this->streamlitProcess = new QProcess;
+    connect(this->streamlitProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_readoutputSlot()) );
+
+    this->StartStreamlitUISlot();
+#endif
+
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
@@ -136,6 +154,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     //this->fileWatcher->addPath(this->VTKOutputPipeName);
     //this->fileWatcher->addPath(this->VTPOutputPipeName);
     this->fileWatcher->addPath(this->SettingJsonFileName);
+    this->fileWatcher->addPath(ROUTE_FILE_NAME);
 
     this->WriteMainPipeSlot(STATE_SB);
     this->VTP_InitParameter();
@@ -316,6 +335,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->CartStateCtlProcess,SIGNAL(SettingOAToggleSignal(CartState_e)),this,SLOT(SettingOAToggleSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(PNGButtonToggleSignal()),this,SLOT(PNGButtonToggleSlot()));
     connect(this->CartStateCtlProcess,SIGNAL(SetToPushInWorkSignal()),this,SLOT(SetToPushInWorkSlot()));
+    connect(this->CartStateCtlProcess,SIGNAL(TKeyClickedInVTKSignal()),this,SLOT(TKeyClickedInVTKSlot()));
 #if(BLUETOOTH_SERIAL_USED)
     connect(this->BTCtlProcess,SIGNAL(BTRxRCCMDSignal(RCCMD_e)),this,SLOT(BTRCCmdSlot(RCCMD_e)));
     connect(this->Time4RCTimeout,SIGNAL(timeout()),this,SLOT(Time4RCTimeoutSlot()));
@@ -328,11 +348,32 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this,SIGNAL(toCalcCapacitySignal(double)),this,SLOT(calcCapacitySlot(double)));
     connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));
 
-#if(STREAMLIT_USED)
-    this->streamlitAppPID = 0;
-    this->CreateStreamlitAppSlot();
-    this->streamlitProcess = new QProcess;
-    connect(this->streamlitProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_readoutputSlot()) );
+#if(CREATE_MAP_USED)
+    QFile *file = new QFile(MAP_FILE_NAME);
+    if(file->exists())
+    {
+        if(QFile::copy(MAP_FILE_NAME,MAP_TEMP_FILE_NAME))
+        {
+            qDebug()<<"copy map.json to /tmp successful:";
+        }
+        else
+        {
+            qDebug()<<"copy map err:";
+        }
+    }
+    else
+    {
+        qDebug()<<"map not exist:";
+    }
+    delete file;
+
+    this->mapInfo   = new MapInfo();
+#endif
+
+#if(ROUNT_USED)
+    this->stationsInRoute = 0;
+    this->RouteRepeatFlag = false;
+    this->loadRount(ROUTE_FILE_NAME);
 #endif
 }
 
@@ -634,7 +675,7 @@ void FTR_CTR3SpeedCtl::CartStateSyncSlot(CartState_e CartState)
     if(this->CartState == STATE_SB) this->CartWantToPNGState = false;
 }
 
-void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
+void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 {
     //qDebug()<<"MainLoop";
     //cart state sync
@@ -753,10 +794,9 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->cnt4ResetWIFIPNGToggle = 0;
 
                     this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
-                    //this->FaceDirFlag                   = true;
-                    //this->StationName4VTP               = 0;
-
                     this->VTKIdleIntoPauseFlag = false;
+
+                    this->inBuildMapModeFlag   = false;
 
                     this->CartStateCtlProcess->SetVTKOAStateFlag(false);
                     this->CartStateCtlProcess->SetVTPOAStateFlag(false);
@@ -772,7 +812,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 }
             #endif
 
-                this->MarkCntRecord             = 0;
+                this->MarkCntRecord             = 0;                
 
                 Wait4CameraReadyIndecateFlag    = false;
                 this->VTKInfo.VTKDist           = 0;
@@ -787,7 +827,8 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 this->VTPInfo.PointOnTape[6]    = TAPE_ANGLE_LOST_VALUE;                
                 this->VTPInfo.StationName       = -1;
                 this->VTPInfo.SpeedCtl          = SPEED_CTL_NULL;
-                 this->SpeedUpAndDownState      = false;
+                this->SpeedUpAndDownState       = false;
+                this->startToCatchCrossFlag     = false;
 
                 if(!this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->start();
                 if(!this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->start();
@@ -885,7 +926,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartStateCtlProcess->SetVTKOAStateFlag((bool)(0xC0 & this->VTKInfo.CtlByte));
 
                 #if(STREAMLIT_USED)
-                    this->StopStreamlitUISlot();
+                    if(!this->streamlitKeepRunFlag) this->StopStreamlitUISlot();
                 #endif
 
                     this->VTKInfo.ToPushFlag = false;
@@ -921,14 +962,27 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
 
                     this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
-                    //this->FaceDirFlag                   = true;
-                    //this->StationName4VTP               = 0;
 
                     this->CartStateCtlProcess->SetVTPOAStateFlag((bool)(0xC0 & this->VTPInfo.CtlByte));
 
                 #if(STREAMLIT_USED)
-                    this->StopStreamlitUISlot();
+                    if(!this->streamlitKeepRunFlag) this->StopStreamlitUISlot();
                 #endif
+
+                #if(ROUNT_SIMULATOR)
+
+                    StationInfo_t currentStationInfo = this->GetActionBaseStationName(QString::number(0),true);//forword
+                    this->VTPInfo.StationName   = currentStationInfo.name.toUInt();
+                    this->VTPInfo.PauseTime     = currentStationInfo.pauseTime;
+                    this->VTPInfo.MaxSpeed      = currentStationInfo.speed;
+                    this->VTPInfo.ToStationDist = currentStationInfo.dist;
+                    this->VTP_UpdateAction(currentStationInfo.action);
+                    this->VTPInfo.CtlByte       = currentStationInfo.CtlByte;
+                #endif
+
+                    this->RemainDistToCross = 0;
+                    this->startToCatchCrossFlag = false;
+                    this->isTheLastStationFlag  = false;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
@@ -940,6 +994,61 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                 }
 
                 if(this->Wait4CameraReadyIndecateFlag) this->VTP_RealTimeInfo();//added for BLDC timeout error
+
+            #if(ROUNT_SIMULATOR)
+                if(this->isTheLastStationFlag && this->InPauseStateFlag)
+                {
+                    this->MarkCntRecord = 0;
+
+                    StationInfo_t currentStationInfo = this->GetActionBaseStationName(QString::number(0),true);//forword
+                    this->VTPInfo.StationName   = currentStationInfo.name.toUInt();
+                    this->VTPInfo.PauseTime     = currentStationInfo.pauseTime;
+                    this->VTPInfo.MaxSpeed      = currentStationInfo.speed;
+                    this->VTPInfo.ToStationDist = currentStationInfo.dist;
+                    this->VTP_UpdateAction(currentStationInfo.action);
+                    this->VTPInfo.CtlByte       = currentStationInfo.CtlByte;
+
+                    this->isTheLastStationFlag  = false;
+                    this->EndActionFlag         = false;
+                    qDebug()<<"Route End:";
+                }
+            #endif
+
+                /*********calc dist to speed up&down***************************/
+                qint32 walkDist = (this->RxInfo.ODO - this->ODOMark4VTPStationCalc);
+                if(0 == this->VTPInfo.ToStationDist)
+                {
+                    this->startToCatchCrossFlag = true;
+                    this->RemainDistToCross = 0;
+                }
+                else
+                {
+                    this->RemainDistToCross = this->VTPInfo.ToStationDist - walkDist;
+                    this->startToCatchCrossFlag = (bool)(START_TO_SPEED_DOWN_DIST < this->RemainDistToCross);
+                    if(this->startToCatchCrossFlag <= 0)
+                    {
+                        this->retrySendStationInfoToSocketFlag = true;
+                        qDebug()<<"atStation Case Lost Cross:";
+                    }
+                }
+
+                if((walkDist > START_TO_SPEED_UP_DIST) && (START_TO_SPEED_DOWN_DIST < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
+                {
+                    this->VTPInfo.SpeedCtl = SPEED_CTL_UP;
+//                    qDebug()<<"SU:";
+                }
+                else
+                {
+                    this->VTPInfo.SpeedCtl = SPEED_CTL_DOWN;
+//                    qDebug()<<"SD:";
+                }
+                /**************************************************************/
+
+                if(this->retrySendStationInfoToSocketFlag)
+                {
+                    this->tcpSocketSendMessageSlot(this->stationInfoToSocket);
+                    qDebug()<<this->stationInfoToSocket;
+                }
             }
             break;
         case STATE_VMARCH:
@@ -969,7 +1078,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)
                     this->CartStateCtlProcess->SetCameraReadyFlagSlot(false);//camera no ready
 
                 #if(STREAMLIT_USED)
-                    this->StopStreamlitUISlot();
+                    if(!this->streamlitKeepRunFlag) this->StopStreamlitUISlot();
                 #endif
                 }
             }
@@ -1085,12 +1194,13 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
     #if(1)
         //add function to report info to vision
         {
-            //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO
+            //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO,toCatchCross
             QString InfoToVisionStr;
-            InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8\n").arg(this->RxInfo.CartState).arg(this->RxInfo.PauseNGoState)
+            InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8,%9\n").arg(this->RxInfo.CartState).arg(this->RxInfo.PauseNGoState)
                             .arg(this->SpeedUpAndDownState).arg(this->InArcTurningFlag).arg(this->StartActionFlag)
-                            .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO);
-
+                            .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO)
+                            .arg(this->startToCatchCrossFlag);
+//            qDebug()<<InfoToVisionStr;
             this->WriteInfoToVisionPipeSlot(InfoToVisionStr);
         }
     #endif
@@ -1198,9 +1308,49 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 }
 
                 this->SpeedUpAndDownState       = (bool)(this->RxInfo.MultiFunction & SpeedUpAndDownBit);
-                this->StartActionFlag           = (bool)(this->RxInfo.MultiFunction & StartActionBit);
+                bool InStartActionFlag           = (bool)(this->RxInfo.MultiFunction & StartActionBit);
                 this->InArcTurningFlag          = (bool)(this->RxInfo.MultiFunction & InArcTurningBit);
                 this->InLostTapeTurningFlag     = (bool)(this->RxInfo.MultiFunction & LostTapeTurningBit);
+                bool InTurningState             = (bool)(this->RxInfo.MultiFunction & InTurningStateBit);
+
+                if(this->StartActionFlag != InStartActionFlag)
+                {
+                    if(this->StartActionFlag && !InStartActionFlag)
+                    {
+                        this->EndActionFlag = true;
+                    }
+                    else if(!this->StartActionFlag)
+                    {
+                        this->EndActionFlag = false;
+                    }
+                    this->StartActionFlag = InStartActionFlag;
+                }
+
+                if(this->InTurningStateFlag != InTurningState)
+                {
+                    if(this->InTurningStateFlag && !InTurningState)//turning finished
+                    {                        
+                        bool face = (this->FaceDirFlag)?(false):(true);
+
+                        if(FaceDirFlag != face)
+                        {
+                            if(this->inBuildMapModeFlag && !this->mapIsSealTypeFlag)
+                            {
+                                if(face && !this->FaceDirFlag)
+                                {
+                                    this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                                    qDebug()<<"BuileMap Finished:";
+                                }
+
+                                this->MarkCntRecord = 0;
+                            }                            
+                            this->FaceDirFlag = face;
+                        }
+                        qDebug()<<"TF,Ch Face";
+                    }
+
+                    this->InTurningStateFlag = InTurningState;
+                }
 
                 bool InPauseStateFlag           = (bool)(this->RxInfo.MultiFunction & InPauseStateBit);
 
@@ -1684,14 +1834,33 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
             //end RC parameter setting
 
             //VTP parameter setting
-                if(obj.contains("stations_num"))
+//                if(obj.contains("stations_num"))
+//                {
+//                    this->stationsNum = obj.value("stations_num").toInt();
+//                    qDebug()<<"stations_num"<<this->stationsNum;
+//                }
+//                else
+//                {
+//                    this->stationsNum   = STATIONS_NUM;
+//                }
+                if(obj.contains("default_fixed_dist"))
                 {
-                    this->stationsNum = obj.value("stations_num").toInt();
-                    qDebug()<<"stations_num"<<this->stationsNum;
+                    this->defaultFixedDist = (obj.value("default_fixed_dist").toInt());
+                    qDebug()<<"default_fixed_dist"<<this->defaultFixedDist;
                 }
                 else
                 {
-                    this->stationsNum   = STATIONS_NUM;
+                    this->defaultFixedDist = DEFAULT_FIXED_DIST;
+                }
+
+                if(obj.contains("used_fixed_dist"))
+                {
+                    this->usedDefaultFixedDistFlag = (obj.value("used_fixed_dist").toBool());
+                    qDebug()<<"used_fixed_dist"<<this->usedDefaultFixedDistFlag;
+                }
+                else
+                {
+                    this->usedDefaultFixedDistFlag = true;
                 }
 
                 if(obj.contains("dist_bt_station"))
@@ -2160,7 +2329,7 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
             //qDebug()<<RxInfoList;
 
-            if(RxMessageList.size() == 5)//ctybyte,action,stationName,MaxSpeed PauseTime
+            if((RxMessageList.size() == 5) || (RxMessageList.size() == 6))//ctybyte,action,stationName,MaxSpeed, PauseTime,dist
             {
                 bool convertResult = false;
 
@@ -2192,8 +2361,20 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                 #endif
                     convertValue   = RxMessageList.at(4).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.PauseTime = (uint16_t)(convertValue);
+
+                    if(RxMessageList.size() == 6)
+                    {
+                        convertValue   = RxMessageList.at(5).toInt(&convertResult);
+                        if(convertResult)   this->VTPInfo.ToStationDist = (uint16_t)(convertValue);
+                    }
                 }
-                //qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime;
+                if(this->retrySendStationInfoToSocketFlag)
+                {
+                    this->retrySendStationInfoToSocketFlag = false;
+                    this->stationInfoToSocket = "";
+                }
+
+                qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime<<this->VTPInfo.ToStationDist;
             }
         }
         else if(RxMessage.startsWith("VersionInfo:"))
@@ -2288,6 +2469,56 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
             }
             qDebug()<<"CC:"<<RxMessage;
         }
+    #if(CREATE_MAP_USED)
+        else if(RxMessage.contains("BuildMap:"))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_VTP);
+            this->MarkCntRecord             = 0;
+            this->StationName4VTP           = 0;
+            this->FaceDirFlag               = true;//forward
+            this->ODOMark4VTPStationCalc    = this->RxInfo.ODO;
+            this->inBuildMapModeFlag        = true;
+
+            //clear map json
+            QFile *file = new QFile(MAP_TEMP_FILE_NAME);
+            if(file->exists()) file->remove();
+
+            QJsonObject obj;
+            obj.insert("stations_num",1);
+            obj.insert("0->0","0,0");
+
+            QJsonDocument doc;
+            doc.setObject(obj);
+
+            file->open(QIODevice::WriteOnly|QIODevice::Truncate);
+            file->seek(0);
+            file->write(doc.toJson());
+            file->flush();
+            file->close();
+
+            delete file;
+        }
+        else if(RxMessage.contains("MapSave:"))
+        {
+            QString cmd = "sudo cp -f " + MAP_TEMP_FILE_NAME + " " + MAP_FILE_NAME;
+
+            QProcess *process = new QProcess();
+            process->start(cmd);
+            process->waitForStarted();
+            process->waitForFinished();
+
+            process->start("sync");
+            process->waitForStarted();
+            process->waitForFinished();
+
+            this->inBuildMapModeFlag        = false;
+        }
+        else if(RxMessage.contains("MapCancle:"))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+            this->inBuildMapModeFlag        = false;
+        }
+    #endif
     }
 }
 
@@ -2517,6 +2748,108 @@ void FTR_CTR3SpeedCtl::SetToPushInWorkSlot()
     qDebug()<<"SetToPushInWork:"<<this->VTKInfo.ToPushFlag;
 }
 
+void FTR_CTR3SpeedCtl::TKeyClickedInVTKSlot()
+{
+    this->VTKInfo.TKeyClickedFlag = true;
+    qDebug()<<"T Key:"<<this->VTKInfo.TKeyClickedFlag;
+}
+
+#if(ROUNT_USED)
+void FTR_CTR3SpeedCtl::loadRount(QString fileName)
+{
+    qDebug()<<"loadRount:"<<fileName;
+
+    QFile *file = new QFile(fileName);
+    if(!file->isOpen() && file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            QByteArray data = file->readAll();
+            file->close();
+
+            //使用json文件对象加载字符串
+            QJsonParseError json_error;
+            QJsonDocument doc=QJsonDocument::fromJson(data,&json_error);
+
+            if(json_error.error != QJsonParseError::NoError)
+            {
+                qDebug()<<"Setting JSON ERROR!";
+                return;
+            }
+
+            //判断是否对象
+            if(doc.isObject())
+            {
+                //把json文档转换为json对象
+                QJsonObject obj=doc.object();
+
+                this->rountList.clear();
+                QJsonObject::iterator iteratorJson = obj.begin();
+                while(iteratorJson != obj.end())
+                {
+                    if(iteratorJson.key().contains("path"))
+                    {
+                        QStringList rountList = iteratorJson.value().toString().split(",");
+                        for(quint16 i =0;i<rountList.size();i++)
+                        {
+                            QStringList stationInRountStrList = rountList.at(i).split("$");
+                            if(stationInRountStrList.size() == 5)
+                            {
+                                StationInfo_t stationInfo;
+                                stationInfo.name = stationInRountStrList.at(0);
+                                stationInfo.dist = stationInRountStrList.at(1).toUInt();
+                                stationInfo.speed= stationInRountStrList.at(2).toUInt();
+                                stationInfo.action = (ActionOnCrossType_e)(stationInRountStrList.at(3).toUInt());
+                                stationInfo.pauseTime = stationInRountStrList.at(4).toUInt();
+                                this->rountList.append(stationInfo);
+                            }
+                        }
+                    }
+                    else if(iteratorJson.key().contains("repeat"))
+                    {
+                        this->RouteRepeatFlag = iteratorJson.value().toBool();
+                    }
+                    iteratorJson++;
+                }
+                this->stationsInRoute = this->rountList.size();
+            }
+        }
+    }
+    delete file;
+    QList<StationInfo_t>::iterator i;//使用只读迭代器
+    for(i=this->rountList.begin(); i !=this->rountList.end();i++)
+    {
+        qDebug()<<i->name<<i->dist<<i->speed<<i->action<<i->pauseTime;
+    }
+    qDebug()<<"Route Repeat:"<<this->RouteRepeatFlag;
+}
+
+StationInfo_t FTR_CTR3SpeedCtl::GetActionBaseStationName(QString name,bool Repeat)//1:Forward,0:Backward
+{
+    StationInfo_t currentStationInfo;
+
+    bool convertResult = false;
+    quint16 stationIndex = name.toUInt(&convertResult);
+    if(convertResult && (stationIndex < this->stationsInRoute))
+    {
+        StationInfo_t station = this->rountList.at(stationIndex);
+
+        currentStationInfo.name = name;
+        currentStationInfo.dist = station.dist;
+        currentStationInfo.speed= station.speed;
+        currentStationInfo.action= station.action;
+        currentStationInfo.pauseTime=station.pauseTime;
+
+        qDebug()<<"SInfo:"<<name<<currentStationInfo.dist<<currentStationInfo.speed<<currentStationInfo.action<<currentStationInfo.pauseTime;
+    }
+    else
+    {
+        qDebug()<<"Station Name Err:"<<stationIndex<<this->stationsInRoute;
+    }
+    return currentStationInfo;
+}
+#endif
+
 FTR_CTR3SpeedCtl::~FTR_CTR3SpeedCtl()
 {    
     delete JsonFile;
@@ -2536,6 +2869,9 @@ FTR_CTR3SpeedCtl::~FTR_CTR3SpeedCtl()
         delete Time4RCTimeout;
     #endif
 
+#if(STREAMLIT_USED)
+    this->StopStreamlitUISlot();
+#endif
     //delete SBProcess;
     //delete RCProcess;
     //delete VTKProcess;

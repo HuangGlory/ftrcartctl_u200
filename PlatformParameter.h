@@ -11,6 +11,9 @@
 #define NUM_STATION_USED                (0)
 #define STREAMLIT_USED                  (1)
 #define PNG_INDECATE_OA                 (0)
+#define CREATE_MAP_USED                 (1)
+#define ROUNT_USED                      (1)
+#define ROUNT_SIMULATOR                 (0)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -19,6 +22,7 @@
 
 #define STATIONS_NUM                    (9)
 #define DIST_BT_STATION                 (1000)
+#define DEFAULT_FIXED_DIST              (900)
 
 #define PLATFORM_R3                     (1)
 #define PLATFORM_U250                   (2)
@@ -36,6 +40,8 @@
     #define ENCODER_CNT             (quint16)(3520)
     #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
 
+    #define START_TO_SPEED_UP_DIST			(uint16_t)(1500)	//un:mm 1500
+    #define START_TO_SPEED_DOWN_DIST 		(uint16_t)(2000) 	//un:mm 2000
 
     #define MOTOR_MOTOR_DIST	  	(520)//(680)//(560)//(700.0)//(520.0)   //cart width between center of tires
     #define ANGLE_ADJUST_FACTOR		(double)(0.9)
@@ -239,6 +245,8 @@ typedef enum
 #define InODOCaliStateBit                           (uint32_t)(0x8000)//BIT(15)
 
 #define LostTapeTurningBit                          (uint32_t)(0x10000)//BIT(16)
+#define AccGyroCaliBit                              (uint32_t)(0x20000)//BIT(17)
+#define InTurningStateBit                           (uint32_t)(0x40000)//BIT(18)
 typedef struct{
     double norm;
     qint16 pitch;
@@ -650,12 +658,13 @@ typedef struct _VTKInfo_t
     int8_t   VTKAngle;
     uint8_t  CtlByte;
     bool     ToPushFlag;
+    bool     TKeyClickedFlag;
 }VTKInfo_t;
 
 typedef struct _CtlByteFlag_t
 {
     quint8 dump0 : 1;
-    quint8 dump1 : 1;
+    quint8 TKeyClicked : 1;
     quint8 OASetOnStation : 1;
     quint8 MotorReleaseInWork : 1;
 

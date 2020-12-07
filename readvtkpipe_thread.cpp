@@ -57,6 +57,18 @@ void ReadVTKPipe_Thread::run()
                     this->UpdateInfo();
                 }
             }
+            else if(2 == RxInfoList.size())//angle,dist2foot,
+            {
+                bool convertAngleResult = false,convertDistResult = false;
+                int  convertAngleValue  = RxInfoList.at(0).toInt(&convertAngleResult);
+                int  convertDistValue   = RxInfoList.at(1).toUInt(&convertDistResult);
+                if(convertAngleResult && convertDistResult)
+                {
+                    this->VTKInfo.VTKAngle = convertAngleValue;
+                    this->VTKInfo.VTKDist  = convertDistValue;
+                    this->UpdateInfo();
+                }
+            }
         }
     }
 

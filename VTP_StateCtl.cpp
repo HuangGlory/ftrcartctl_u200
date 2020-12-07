@@ -35,7 +35,14 @@ void FTR_CTR3SpeedCtl::VTP_Enter()//CMD = 0x91
     ByteArray[15]=(RightDiam >> 8) & 0xFF;
     ByteArray[16]=(RightDiam & 0xFF);
 
-    ByteArray[17]=this->CartModeEnterParameter.actionEndTape;
+    if(this->inBuildMapModeFlag)
+    {
+        ByteArray[17]=ACTION_UTURN_GO;
+    }
+    else
+    {
+        ByteArray[17]=this->CartModeEnterParameter.actionEndTape;
+    }
 
     ByteArray[18]= 0x00;
     ByteArray[19]= 0x00;
@@ -75,7 +82,7 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_VTAPE_INFO;
     ByteArray[2]=0x00;
-    ByteArray[3]=0x0D;
+    ByteArray[3]=0x19;
 
     ByteArray[4]=(this->VTPInfo.PointOnTape[0]>>8) & 0xFF;
     ByteArray[5]=(this->VTPInfo.PointOnTape[0]);
@@ -114,10 +121,22 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     ByteArray[25]=(this->VTPInfo.ToStationDist>>8) & 0xFF;
     ByteArray[26]=this->VTPInfo.ToStationDist & 0xFF;
 
-    ByteArray[27]=this->App_XOR(ByteArray);
+    if(this->usedDefaultFixedDistFlag)
+    {
+        ByteArray[27]=(this->defaultFixedDist>>8) & 0xFF;
+        ByteArray[28]=this->defaultFixedDist & 0xFF;
+//        qDebug()<<this->defaultFixedDist;
+    }
+    else
+    {
+        ByteArray[27]=(this->remainDistToStation>>8) & 0xFF;
+        ByteArray[28]=this->remainDistToStation & 0xFF;
+    }
 
-    //qDebug()<<"TxCB:"<<this->VTPInfo.CtlByte<<this->VTPInfo.StationName;
-    //qDebug("CtlByte:0x%x",this->VTPInfo.CtlByte);
+    ByteArray[29]=this->App_XOR(ByteArray);
+
+//    qDebug()<<"RTX:"<<this->VTPInfo.StationName<<this->VTPInfo.setAction;
+
 #elif(SERIAL_TYPE == SERIAL_TYPE_TTL)
     ByteArray[0]=SOP_TTL;
     ByteArray[1]=cmd;

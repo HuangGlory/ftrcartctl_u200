@@ -338,9 +338,9 @@ void CartStateSetting::LoopTimerSlot()
                     {
                         this->CurrentCartState = STATE_VTP;
                     }
-                    else if(this->CurrentCartState == STATE_VTP)
+                    else if(this->CurrentCartState == STATE_VTK)
                     {
-                        emit this->SetToPushInWorkSignal();
+                        emit this->TKeyClickedInVTKSignal();
                     }
                 }
                 this->WhichKey.clear();

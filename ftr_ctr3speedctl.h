@@ -36,8 +36,16 @@
 #include <imu.h>
 #endif
 
+#if(CREATE_MAP_USED)
+#include "mapinfo.h"
+#endif
+
 #include <iostream>
 using namespace std;
+
+//map
+#define MAP_TEMP_FILE_NAME tr("/tmp/map.json")
+#define MAP_FILE_NAME      tr("/home/pi/ftrCartCtl/map.json")
 
 //Json
 #define JSON_FILE_NAME      tr("/home/pi/vision/data/config.json")
@@ -57,9 +65,28 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.7.02.U200@20201110\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.8.00.U200@20201123\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.8.00.U200@20201123
+ * 1.增加route information
+ * 2.中间层加发到下一站的距离信息
+ * 3.发的vision的数据加一个位置，startToCatchCross标志
+ * 4.用行走的ODO来计算加减带时机
+ * 5.增加route simulator
+ * 6.map增加弧形标志
+ * 7.发给Socket的Station信息，原来的--dist：改为逗号
+ * 8.VTP增加发送两个字节，表示到站remain dist
+ * 9.retry to send station info to socket per 100ms
+ * 10.when lost the cross,用odo换站
+ *
+ * Ver:0.0.7.03.U200@20201112
+ * 1.启动时会开始一次streamlit，fix有时第一次启动streamlit不work问题
+ * 2.Create map automatic
+ * 3.启动后将map.json copy到/tmp下
+ * 4.VTK下可以兼容vision的2/3笔数据
+ * 5.VTK下侦测T key，可以在VTK下解除不近距离不能原地旋转问题
+ *
  * Ver:0.0.7.02.U200@20201110
  * 1.增加过滤无效点信息at vtp
  * 2.重定义加减速
@@ -297,6 +324,10 @@ using namespace std;
 #define LOOP_PER        (quint8)(97)//(51)
 #define RC_COMM_TIMEOUT (quint16)(1000)
 
+#if(CREATE_MAP_USED)
+#define DIST_CALI_4_VTP_MAP_CREATE  (qint16)(850) //about 1m
+#endif
+
 /*********end communication ctl define********************/
 
 class FTR_CTR3SpeedCtlData;
@@ -351,6 +382,13 @@ public:
 
 public slots:
     void SetToPushInWorkSlot();
+    void TKeyClickedInVTKSlot();
+#if(CREATE_MAP_USED)
+    void CreateMapSlot(QString station,quint16 dist,qint16 maxSpeed,bool face,bool isFirstStation);
+    void loadRount(QString fileName);
+    StationInfo_t GetActionBaseStationName(QString name,bool Repeat);//1:Forward,0:Backward
+#endif
+
 #if(STREAMLIT_USED)
     void on_readoutputSlot(void);
     void CreateStreamlitAppSlot(void);
@@ -475,8 +513,10 @@ private:
     bool            VTKIdleIntoPauseFlag;
     bool            SpeedUpAndDownState;
     bool            StartActionFlag;
+    bool            EndActionFlag;
     bool            InArcTurningFlag;
     bool            InLostTapeTurningFlag;
+    bool            InTurningStateFlag;
     bool            InPauseStateFlag;
     bool            GetVersionOfEBoxFlag;
     bool            Wait4CameraReadyIndecateFlag;
@@ -567,16 +607,37 @@ private:
 
     qint32          ODOMark4VTPStationCalc;
     quint16         MarkCntRecord;
-    //quint8          StationName4VTP;
-    //bool            FaceDirFlag;
-
-    quint8          stationsNum;
+    quint16         StationName4VTP;
+    bool            FaceDirFlag;
+    bool            usedDefaultFixedDistFlag;
+    quint16         defaultFixedDist;
     quint16         distBtStation;
+    quint16         remainDistToStation;
 
 #if(STREAMLIT_USED)
     QProcess *streamlitProcess;
     qint64  streamlitAppPID;
+    bool    streamlitKeepRunFlag;
 #endif
+
+#if(CREATE_MAP_USED)
+    bool            inBuildMapModeFlag;
+    bool            mapIsSealTypeFlag;
+    quint16         totalStationsNum;
+    MapInfo         *mapInfo;
+#endif
+
+#if(ROUNT_USED)
+    QList<StationInfo_t> rountList;
+    qint32          RemainDistToCross;
+    quint8          stationsInRoute;
+    bool            RouteRepeatFlag;
+    bool            isTheLastStationFlag;
+    bool            startToCatchCrossFlag;
+#endif
+
+    QString         stationInfoToSocket;
+    bool            retrySendStationInfoToSocketFlag;
 };
 
 #endif // FTR_CTR3SPEEDCTL_H

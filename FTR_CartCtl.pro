@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.7.02.U200@20201110
+TARGET = ftrCartCtl_V0.0.8.00.U200@20201123
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -20,6 +20,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     BLDC_SpeedCtl.cpp \
+    CreateMap.cpp \
     Pipe_Operate.cpp \
     RC_StateCtl.cpp \
     SB_StateCtl.cpp \
@@ -32,12 +33,14 @@ SOURCES += \
     kalman.cpp \
     licensecheck.cpp \
     main.cpp \
+    mapinfo.cpp \
     motorctrlinfo.cpp \
     rc_thread.cpp \
     readinputpipe_thread.cpp \
     readvtkpipe_thread.cpp \
     readvtppipe_thread.cpp \
     sb_thread.cpp \
+    stationattribute.cpp \
     vtk_thread.cpp
 
 # Default rules for deployment.
@@ -55,12 +58,14 @@ HEADERS += \
     imu.h \
     kalman.h \
     licensecheck.h \
+    mapinfo.h \
     motorctrlinfo.h \
     rc_thread.h \
     readinputpipe_thread.h \
     readvtkpipe_thread.h \
     readvtppipe_thread.h \
     sb_thread.h \
+    stationattribute.h \
     streamlitApp.h \
     updateScript.h \
     vtk_thread.h \

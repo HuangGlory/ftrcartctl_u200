@@ -78,10 +78,17 @@ void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
 
 void FTR_CTR3SpeedCtl::WriteInfoToVisionPipeSlot(QString info)//cycle per second
 {
-    this->StateInfoInputPipeFile->write(info.toUtf8());
-    this->StateInfoInputPipeFile->flush();
-    //QFileInfo *fileInfo = new QFileInfo(this->StateInfoInputPipeFile->fileName());
-    //qDebug()<<"ToVisionInfo:"<<info.toUtf8();
+    if(this->StateInfoInputPipeFile->size() == 0)
+    {
+        this->StateInfoInputPipeFile->write(info.toUtf8());
+        this->StateInfoInputPipeFile->flush();
+        //QFileInfo *fileInfo = new QFileInfo(this->StateInfoInputPipeFile->fileName());
+        //qDebug()<<"ToVisionInfo:"<<info.toUtf8();
+    }
+    else
+    {
+        qDebug()<<"StateInfoInputPipe not empty:";
+    }
 }
 
 void FTR_CTR3SpeedCtl::WriteOutPipeSlot(QString str)
@@ -130,7 +137,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         qDebug()<<str;
     }
     //quint8 CalcArcIndex = 0,NumCnt = 0;
-#if(1)
+#if(0)
     QVector<QPoint> pointInfo;
     for(quint8 i = 0;i<6;i++)
     {
@@ -163,6 +170,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
     }
 
 #if(PLATFORM == PLATFORM_U250)
+    #if(0)
     //speed up&down
     if((VTPInfo.SpeedCtl == SPEED_CTL_NULL) || (this->StartActionFlag || this->InArcTurningFlag))
     {
@@ -174,6 +182,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         this->VTPInfo.SpeedCtl = VTPInfo.SpeedCtl;
     }
     //qDebug()<<"SCTL:"<<this->VTPInfo.SpeedCtl;
+    #endif
     #if(NUM_STATION_USED)
         /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
         {
@@ -241,31 +250,75 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
             qDebug()<<"StationN:"<<this->StationName4VTP<<this->FaceDirFlag;
         }
     #else
+//        qDebug()<<VTPInfo.GotMarkFlag<<this->StartActionFlag<<this->SpeedUpAndDownState<<abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc);
         //Got the mark in speed down and no in arc turning
         //if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
-        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
-        {
-            this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
-            this->MarkCntRecord++;
-
-            this->VTPInfo.ToStationDist = VTPInfo.ToStationDist;
-            if(this->SocketReadyFlag)
+//        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+//        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        {            
+            if(this->FaceDirFlag)//forward
             {
-                QString StationNameStr = "Station:"+QString::number(VTPInfo.GotMarkFlag) + "--Dist:"+QString::number(VTPInfo.ToStationDist);
-                this->tcpSocketSendMessageSlot(StationNameStr);
-                qDebug()<<StationNameStr<<this->MarkCntRecord;
+                this->StationName4VTP++;
+            }
+            else
+            {
+                this->StationName4VTP--;
+            }
+            this->MarkCntRecord++;
+        #if(CREATE_MAP_USED)
+            if(this->inBuildMapModeFlag)
+            {
+//                if(this->mapIsSealTypeFlag )
+                this->CreateMapSlot(QString::number(this->StationName4VTP),(this->RxInfo.ODO - this->ODOMark4VTPStationCalc + VTPInfo.ToStationDist),this->CartModeEnterParameter.maxSpeed,this->FaceDirFlag,(bool)(1==this->MarkCntRecord));
+                this->EmitBeepSound(BEEP_TYPE_SHORT_BEEP_1);
+            }
+        #endif
+
+            this->remainDistToStation = VTPInfo.ToStationDist;
+        #if(ROUNT_SIMULATOR)
+            if(this->MarkCntRecord == (this->stationsInRoute - 1))
+            {
+                this->isTheLastStationFlag = true;
+//                qDebug()<<"EndS:"<<this->MarkCntRecord<<this->stationsInRoute;
+            }
+
+            if(this->MarkCntRecord < this->stationsInRoute)
+            {
+                StationInfo_t currentStationInfo = this->GetActionBaseStationName(QString::number(this->MarkCntRecord),true);//forword
+                this->VTPInfo.StationName   = currentStationInfo.name.toUInt();
+                this->VTPInfo.PauseTime     = currentStationInfo.pauseTime;
+                this->VTPInfo.MaxSpeed      = currentStationInfo.speed;
+                this->VTPInfo.ToStationDist = currentStationInfo.dist;
+                this->VTP_UpdateAction(currentStationInfo.action);
+                this->VTPInfo.CtlByte       = currentStationInfo.CtlByte;
+            }
+            else
+            {
+                qDebug()<<"station num too more:";
+            }
+
+        #else
+            if(this->SocketReadyFlag)// && !this->inBuildMapModeFlag)
+            {
+                this->stationInfoToSocket = "Station:"+QString::number(VTPInfo.GotMarkFlag) + "," +QString::number(VTPInfo.ToStationDist);
+                //this->tcpSocketSendMessageSlot(this->stationInfoToSocket);
+                this->retrySendStationInfoToSocketFlag = true;
+                qDebug()<<this->stationInfoToSocket<<this->MarkCntRecord<<(this->RxInfo.ODO - this->ODOMark4VTPStationCalc + VTPInfo.ToStationDist);
             }
             else
             {
                 this->VTPInfo.StationName = VTPInfo.StationName;
-                qDebug()<<"Station:"<<VTPInfo.StationName<<this->MarkCntRecord;
+                qDebug()<<"StationNormal:"<<VTPInfo.StationName<<this->StationName4VTP<<this->FaceDirFlag<<this->MarkCntRecord<<VTPInfo.ToStationDist;
             }
+        #endif
+
+            this->ODOMark4VTPStationCalc = (this->RxInfo.ODO + VTPInfo.ToStationDist);
         }
     #endif
 
 #endif
     this->VTP_RealTimeInfo();
-    //qDebug()<<"VTPRTInfo:";
 }
 
 void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
@@ -312,15 +365,105 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
     {
         str = str.replace("ModeChange:","");
         str = str.replace("\n","");
-        if(str.contains("VTK",Qt::CaseInsensitive))
+        this->streamlitKeepRunFlag = true;
+        if(str.contains("SB",Qt::CaseInsensitive))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+            this->streamlitKeepRunFlag = false;
+        }
+        else if(str.contains("VTK",Qt::CaseInsensitive))
         {
             this->CartStateCtlProcess->SetCartStateExternal(STATE_VTK);
         }
-        else
+        else if(str.contains("VTP",Qt::CaseInsensitive))
         {
-            this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_VTP);
+        }
+        else if(str.contains("MR",Qt::CaseInsensitive))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_MOTOR_RELEASE);
+        }
+    #if(CREATE_MAP_USED)
+        else if(str.contains("BuildMap"))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_VTP);
+            this->MarkCntRecord             = 0;
+            this->StationName4VTP           = 0;
+            this->FaceDirFlag               = true;//forward
+            this->ODOMark4VTPStationCalc    = this->RxInfo.ODO;
+            this->inBuildMapModeFlag        = true;
+
+            //clear map json
+            QFile *file = new QFile(MAP_TEMP_FILE_NAME);
+            if(file->exists()) file->remove();
+            QJsonObject obj;
+            obj.insert("stations_num",1);
+            obj.insert("type",0);//it's unseal type
+            obj.insert("0->0","0,0");
+            this->mapIsSealTypeFlag = false;//it's unseal type
+
+            str = str.replace("BuildMap:","");
+            str = str.replace("\n","");
+            if(!str.isEmpty())
+            {
+                QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+                if(RxMessageList.size() == 2)
+                {
+                    bool convertResult = false;
+                    int converValue = RxMessageList.at(0).toInt(&convertResult);
+                    if(convertResult && converValue)
+                    {
+                        obj.insert("type",1);//it's seal type
+                        this->mapIsSealTypeFlag = true;//it's seal type
+                    }
+
+                    this->totalStationsNum = RxMessageList.at(1).toInt(&convertResult);
+                }
+            }
+
+            QJsonDocument doc;
+            doc.setObject(obj);
+
+            file->open(QIODevice::WriteOnly|QIODevice::Truncate);
+            file->seek(0);
+            file->write(doc.toJson());
+            file->flush();
+            file->close();
+
+            delete file;
+        }        
+    #endif
+    }
+#if(CREATE_MAP_USED)
+    else if(str.contains("MapSave:"))
+    {
+        QString cmd = "sudo cp -f " + MAP_TEMP_FILE_NAME + " " + MAP_FILE_NAME;
+
+        QProcess *process = new QProcess();
+        process->start(cmd);
+        process->waitForStarted();
+        process->waitForFinished();
+
+        process->start("sync");
+        process->waitForStarted();
+        process->waitForFinished();
+
+        this->inBuildMapModeFlag        = false;
+    }
+    else if(str.contains("VTPInit:"))//face dir,current station
+    {
+        str = str.replace("VTPInit:","");
+        str = str.replace("\n","");
+        QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+
+        if(RxMessageList.size() == 2)
+        {
+            this->FaceDirFlag = (bool)(RxMessageList.at(0).toUInt());
+            this->StationName4VTP = RxMessageList.at(1).toUInt();
+//            qDebug()<<this->FaceDirFlag<<this->StationName4VTP;
         }
     }
+#endif
     else if(str.contains("ResetWIFI:"))
     {
         ResetWIFISlot();
@@ -436,5 +579,9 @@ void FTR_CTR3SpeedCtl::fileChangedSlot(const QString & path)
         //cout()<<path.toStdString()<<endl;
         this->GetSettingParameterFromJson(this->SettingJsonFileName);
         this->VTP_InitParameter();
+    }
+    else if(path.contains(ROUTE_FILE_NAME))
+    {
+        this->loadRount(ROUTE_FILE_NAME);
     }
 }
