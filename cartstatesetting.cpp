@@ -326,7 +326,7 @@ void CartStateSetting::LoopTimerSlot()
                     {
                         this->CurrentCartState = STATE_VTK;
                     }
-                    else if(this->CurrentCartState == STATE_VTK)
+                    else if(this->CurrentCartState == STATE_VTP)
                     {
                         emit this->SetToPushInWorkSignal();
                     }
@@ -340,7 +340,8 @@ void CartStateSetting::LoopTimerSlot()
                     }
                     else if(this->CurrentCartState == STATE_VTK)
                     {
-                        emit this->TKeyClickedInVTKSignal();
+//                        emit this->TKeyClickedInVTKSignal();
+                        emit this->SetToPushInWorkSignal();
                     }
                 }
                 this->WhichKey.clear();
@@ -411,7 +412,12 @@ void CartStateSetting::LoopTimerSlot()
 
 void CartStateSetting::SetCartStateExternal(CartState_e state)
 {
-     this->CurrentCartState = (this->PreCartState == STATE_SB)?(state):(STATE_SB);
+    //qDebug()<<"SCStateE:"<<this->PreCartState<<this->CurrentCartState;
+    printf("SCStateE:%d,%d\n",this->PreCartState,this->CurrentCartState);
+    if(state != this->PreCartState)
+    {
+        this->CurrentCartState = (this->PreCartState == STATE_SB)?(state):(STATE_SB);
+    }
 }
 
 void CartStateSetting::SetInConfigModeFlagSlot(bool state)

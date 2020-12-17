@@ -18,8 +18,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
 
+    this->remainDistToStationTxToEBox = 0;
     this->stationInfoToSocket = "";
     this->retrySendStationInfoToSocketFlag = false;
+    this->retrySendStationInfoCnt = 0;
 
     this->defaultFixedDist = DEFAULT_FIXED_DIST;
     this->remainDistToStation = 0;
@@ -58,12 +60,19 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->imuData       = new imu();
 #endif
 
+#if(CREATE_UPDATEALLAPP_SCRIPT_USED)
+    this->CreateUpdateScript();
+#endif
+
     this->fileWatcher   = new QFileSystemWatcher;
 
     this->Time2Loop                 = new QTimer;
     this->Time2SendData             = new QTimer;
     this->PauseToGoTimer            = new QTimer;
     this->RecoverTimer              = new QTimer;
+
+    this->timeElapsedGotODOToMark       = new QTime;
+    this->timeElapsedGotMarkToSendInfo  = new QTime;
 
 #if(BLUETOOTH_SERIAL_USED)
     this->Time4RCTimeout            = new QTimer;
@@ -335,7 +344,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->CartStateCtlProcess,SIGNAL(SettingOAToggleSignal(CartState_e)),this,SLOT(SettingOAToggleSlot(CartState_e)));
     connect(this->CartStateCtlProcess,SIGNAL(PNGButtonToggleSignal()),this,SLOT(PNGButtonToggleSlot()));
     connect(this->CartStateCtlProcess,SIGNAL(SetToPushInWorkSignal()),this,SLOT(SetToPushInWorkSlot()));
-    connect(this->CartStateCtlProcess,SIGNAL(TKeyClickedInVTKSignal()),this,SLOT(TKeyClickedInVTKSlot()));
+//    connect(this->CartStateCtlProcess,SIGNAL(TKeyClickedInVTKSignal()),this,SLOT(TKeyClickedInVTKSlot()));
 #if(BLUETOOTH_SERIAL_USED)
     connect(this->BTCtlProcess,SIGNAL(BTRxRCCMDSignal(RCCMD_e)),this,SLOT(BTRCCmdSlot(RCCMD_e)));
     connect(this->Time4RCTimeout,SIGNAL(timeout()),this,SLOT(Time4RCTimeoutSlot()));
@@ -860,6 +869,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 if(this->batCapacityInfo.lessThan10Flag)
                 {
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                    printf("LowPowerToSB:\n");
                 }
             }
             break;
@@ -889,6 +899,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 if(this->batCapacityInfo.lessThan10Flag)
                 {
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                    printf("LowPowerToSB:\n");
                 }
 
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
@@ -938,6 +949,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 if(this->batCapacityInfo.lessThan10Flag)
                 {
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                    printf("LowPowerToSB:\n");
                 }
             }
             break;
@@ -980,9 +992,18 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     this->VTPInfo.CtlByte       = currentStationInfo.CtlByte;
                 #endif
 
+                //request the station information
+                    this->remainDistToStationTxToEBox = 0;
+                    this->remainDistToStation = 0;
+                    this->stationInfoToSocket = "Station:"+QString::number(1) + "," +QString::number(this->remainDistToStation);
+                    this->retrySendStationInfoToSocketFlag = true;
+
+                    this->retrySendStationInfoCnt = 0;
                     this->RemainDistToCross = 0;
                     this->startToCatchCrossFlag = false;
                     this->isTheLastStationFlag  = false;
+
+                    this->VTPInfo.ToPushFlag    = false;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
@@ -991,6 +1012,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 if(this->batCapacityInfo.lessThan10Flag)
                 {
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                    printf("LowPowerToSB:\n");
                 }
 
                 if(this->Wait4CameraReadyIndecateFlag) this->VTP_RealTimeInfo();//added for BLDC timeout error
@@ -1023,12 +1045,18 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 }
                 else
                 {
+                    //target odo - walkDist
                     this->RemainDistToCross = this->VTPInfo.ToStationDist - walkDist;
                     this->startToCatchCrossFlag = (bool)(START_TO_SPEED_DOWN_DIST < this->RemainDistToCross);
-                    if(this->startToCatchCrossFlag <= 0)
+                    if(this->RemainDistToCross <= 0)//
                     {
+                        this->remainDistToStation = 0;
+//                        this->remainDistToStationTxToEBox = 0;
+                        this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+                        this->stationInfoToSocket = "Station:"+QString::number(1) + "," +QString::number(0);
+
+                        qDebug()<<"@Station Case Lost Cross:"<<this->VTPInfo.ToStationDist<<walkDist;
                         this->retrySendStationInfoToSocketFlag = true;
-                        qDebug()<<"atStation Case Lost Cross:";
                     }
                 }
 
@@ -1046,6 +1074,11 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 
                 if(this->retrySendStationInfoToSocketFlag)
                 {
+                    if(++this->retrySendStationInfoCnt >= 10)
+                    {
+                        this->retrySendStationInfoToSocketFlag = false;
+                        this->retrySendStationInfoCnt = 0;
+                    }
                     this->tcpSocketSendMessageSlot(this->stationInfoToSocket);
                     qDebug()<<this->stationInfoToSocket;
                 }
@@ -1086,6 +1119,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
             if(this->batCapacityInfo.lessThan10Flag)
             {
                 this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+                printf("LowPowerToSB:\n");
             }
             break;
         default:
@@ -1424,6 +1458,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 convertValue        = RxInfoList.at(RX_INFO_ORDER_YAW).toInt(&convertResult);
                 if(convertResult)    this->RxInfo.yaw = convertValue;
 
+                this->timeElapsedGotODOToMark->start();
                 if(this->HSWant2State != this->RxInfo.HSWantToCartState)
                 {
                     this->HSWant2State = this->RxInfo.HSWantToCartState;
@@ -1951,9 +1986,9 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                     qDebug()<<"us_oa_march"<<this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.USOAOn_Off;
                 }
             //end march parameter setting
-
+                //this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir
                 this->GlobaOAStateFlag = (this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.USOAOn_Off ||\
-                                          this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir || this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off ||\
+                                          this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off ||\
                                           this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off ||\
                                           this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.USOAOn_Off);
             }
@@ -2342,10 +2377,9 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                 #if(!USED_DEFAULT_PARAMETER_ON_STATION)
                     convertValue   = RxMessageList.at(0).toInt(&convertResult);
                     if(convertResult)   this->VTPInfo.CtlByte = (uint8_t)(convertValue);
-
-                    convertValue   = RxMessageList.at(3).toInt(&convertResult);
-                    if(convertResult)   this->VTPInfo.MaxSpeed = (uint16_t)(convertValue);
                 #endif
+                    convertValue   = RxMessageList.at(3).toInt(&convertResult);
+                    if(convertResult)   this->VTPInfo.MaxSpeed = (uint16_t)(convertValue);                
 
                     convertValue   = RxMessageList.at(1).toInt(&convertResult);
                     if(convertResult)  this->VTP_UpdateAction(ActionOnCrossType_e(convertValue));
@@ -2373,7 +2407,7 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                     this->retrySendStationInfoToSocketFlag = false;
                     this->stationInfoToSocket = "";
                 }
-
+                this->stationInfoUpdateFlag = true;
                 qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime<<this->VTPInfo.ToStationDist;
             }
         }
@@ -2468,6 +2502,17 @@ void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
                 }
             }
             qDebug()<<"CC:"<<RxMessage;
+        }
+        else if(RxMessage.contains("StartNewPath:"))
+        {
+        //request the station information
+            this->remainDistToStation = 0;
+            //this->remainDistToStationTxToEBox = 0;
+            this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+            this->stationInfoToSocket = "Station:"+QString::number(1) + "," +QString::number(this->remainDistToStation);
+
+            this->retrySendStationInfoToSocketFlag = true;
+            qDebug()<<"StartNewPath:";
         }
     #if(CREATE_MAP_USED)
         else if(RxMessage.contains("BuildMap:"))
@@ -2649,7 +2694,30 @@ ArcInfo_t FTR_CTR3SpeedCtl::CalcArcInfoSlot(PointAxis_t p1,PointAxis_t p2,PointA
 
     return arc;
 }
-
+#if(CREATE_UPDATEALLAPP_SCRIPT_USED)
+void FTR_CTR3SpeedCtl::CreateUpdateScript(void)
+{
+    QFile *file = new QFile(UPDATEALLAPP_SCRIPT_FILE_NAME);
+    if(file->exists())
+    {
+        printf("UpdateScript Exist,Create into /tmp:");
+        if(file->copy(UPDATEALLAPP_SCRIPT_DIST_DIR))
+        {
+            printf("Successful!\n");
+            system("sync;sync;");
+            system("sudo chmod 777 /tmp/updateAllApp");
+        }
+        else
+        {
+            printf("Fail!\n");
+        }
+    }
+    else
+    {
+        printf("UpdateScript Not Exist:\n");
+    }
+}
+#endif
 void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
 {
     QString oldShVersion;
@@ -2745,14 +2813,15 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
 void FTR_CTR3SpeedCtl::SetToPushInWorkSlot()
 {    
     this->VTKInfo.ToPushFlag = !this->VTKInfo.ToPushFlag;
-    qDebug()<<"SetToPushInWork:"<<this->VTKInfo.ToPushFlag;
+    this->VTPInfo.ToPushFlag = !this->VTPInfo.ToPushFlag;
+    qDebug()<<"SetToPushInWork:"<<this->VTKInfo.ToPushFlag<<this->VTPInfo.ToPushFlag;
 }
 
-void FTR_CTR3SpeedCtl::TKeyClickedInVTKSlot()
-{
-    this->VTKInfo.TKeyClickedFlag = true;
-    qDebug()<<"T Key:"<<this->VTKInfo.TKeyClickedFlag;
-}
+//void FTR_CTR3SpeedCtl::TKeyClickedInVTKSlot()
+//{
+//    this->VTKInfo.TKeyClickedFlag = true;
+//    qDebug()<<"T Key:"<<this->VTKInfo.TKeyClickedFlag;
+//}
 
 #if(ROUNT_USED)
 void FTR_CTR3SpeedCtl::loadRount(QString fileName)

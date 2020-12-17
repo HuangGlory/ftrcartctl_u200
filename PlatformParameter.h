@@ -14,6 +14,7 @@
 #define CREATE_MAP_USED                 (1)
 #define ROUNT_USED                      (1)
 #define ROUNT_SIMULATOR                 (0)
+#define CREATE_UPDATEALLAPP_SCRIPT_USED (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -41,7 +42,7 @@
     #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
 
     #define START_TO_SPEED_UP_DIST			(uint16_t)(1500)	//un:mm 1500
-    #define START_TO_SPEED_DOWN_DIST 		(uint16_t)(2000) 	//un:mm 2000
+    #define START_TO_SPEED_DOWN_DIST 		(uint16_t)(2500) 	//un:mm 2000
 
     #define MOTOR_MOTOR_DIST	  	(520)//(680)//(560)//(700.0)//(520.0)   //cart width between center of tires
     #define ANGLE_ADJUST_FACTOR		(double)(0.9)
@@ -51,7 +52,7 @@
     #define STK_SENSOR_HEIGHT    	(240.0)
 
     //define for tape trace
-    #define MOTOR_SHAFT_TO_FW_PANEL_DIST (450)//un:mm
+    #define MOTOR_SHAFT_TO_FW_PANEL_DIST (432 - 200)//un:mm
     #define FW_PANNEL_TO_IMAGE_DIST		 (350)//un:mm
     //#define MOTOR_SHAFT_TO_BW_PANEL_DIST (610)//un:mm
     //pix 640*480(驴铆*鲁陇)->(MOTOR_MOTOR_DIST + 370) * 1000,un:mm
@@ -649,6 +650,7 @@ typedef struct _VTPInfo_t
     uint16_t PauseTime;
     SpeedCtl_e SpeedCtl;
     ActionOnCrossType_e setAction;
+    bool     ToPushFlag;
 }VTPInfo_t;
 
 typedef struct _VTKInfo_t
@@ -658,7 +660,7 @@ typedef struct _VTKInfo_t
     int8_t   VTKAngle;
     uint8_t  CtlByte;
     bool     ToPushFlag;
-    bool     TKeyClickedFlag;
+//    bool     TKeyClickedFlag;
 }VTKInfo_t;
 
 typedef struct _CtlByteFlag_t

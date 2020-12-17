@@ -176,7 +176,7 @@ signals:
     void PNGButtonToggleSignal();
     void SettingOAToggleSignal(CartState_e);
     void SetToPushInWorkSignal();
-    void TKeyClickedInVTKSignal();
+//    void TKeyClickedInVTKSignal();
 public slots:
     void LoopTimerSlot(void);
     void LEDBlinkSpeedCtlTimerSlot(void);

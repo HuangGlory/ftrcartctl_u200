@@ -110,6 +110,16 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
 
     ByteArray[19]=this->VTPInfo.CtlByte;
 
+    if(this->VTPInfo.ToPushFlag)
+    {
+        ByteArray[19]=this->VTPInfo.CtlByte | 0x02;
+    }
+    else
+    {
+        ByteArray[19]=this->VTPInfo.CtlByte & (~0x02);
+    }
+//    qDebug("ctlByte:%x,%d",ByteArray.at(19),this->VTPInfo.ToPushFlag);
+
     ByteArray[20]=this->VTPInfo.setAction;
     ByteArray[21]=this->VTPInfo.StationName;
 
@@ -121,16 +131,29 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     ByteArray[25]=(this->VTPInfo.ToStationDist>>8) & 0xFF;
     ByteArray[26]=this->VTPInfo.ToStationDist & 0xFF;
 
+    if(this->stationInfoUpdateFlag)
+    {
+        this->stationInfoUpdateFlag = false;
+        quint16 detalODO = (quint16)(this->timeElapsedGotMarkToSendInfo->elapsed()*0.25 + 0.5);
+        if(this->timeElapsedGotMarkToSendInfo->elapsed() < 300)
+        {
+            this->remainDistToStation -= detalODO;
+        }
+
+        qDebug()<<"USI:"<<this->timeElapsedGotMarkToSendInfo->elapsed()<<detalODO;
+
+        this->remainDistToStationTxToEBox = this->remainDistToStation;
+    }
+
     if(this->usedDefaultFixedDistFlag)
     {
         ByteArray[27]=(this->defaultFixedDist>>8) & 0xFF;
         ByteArray[28]=this->defaultFixedDist & 0xFF;
-//        qDebug()<<this->defaultFixedDist;
     }
     else
     {
-        ByteArray[27]=(this->remainDistToStation>>8) & 0xFF;
-        ByteArray[28]=this->remainDistToStation & 0xFF;
+        ByteArray[27]=(this->remainDistToStationTxToEBox>>8) & 0xFF;
+        ByteArray[28]=this->remainDistToStationTxToEBox & 0xFF;
     }
 
     ByteArray[29]=this->App_XOR(ByteArray);

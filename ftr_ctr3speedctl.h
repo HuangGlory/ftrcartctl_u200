@@ -43,6 +43,10 @@
 #include <iostream>
 using namespace std;
 
+//updateAllApp script
+#define UPDATEALLAPP_SCRIPT_FILE_NAME        tr(":file//updateAllApp")
+#define UPDATEALLAPP_SCRIPT_DIST_DIR        tr("/tmp/updateAllApp")
+
 //map
 #define MAP_TEMP_FILE_NAME tr("/tmp/map.json")
 #define MAP_FILE_NAME      tr("/home/pi/ftrCartCtl/map.json")
@@ -65,9 +69,21 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.8.00.U200@20201123\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.9.00.U200@20201211\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.9.00.U200@20201211
+ * 1.计算收到十字到发站点信息时间差，提高到站精度
+ * 2.fix sometimes cann't enter Tape mode from phone
+ * 3.没看到十字时根据odo自动产生一个站点请求
+ * 4.在VTP下按Fkey可以motor release quickly，相应地，在VTK下短按T key 可以motor release quickly
+ * 5.add create updateAllApp Script
+ *
+ * ftrCartCtl Ver:0.0.8.01.U200@20201207
+ * 1.VTP每次进去就请求下段路径的信息
+ * 2.fix 在motor release下按pause不能设置全局OA的问题
+ * 3.增加在VTP下有新路径更新时会提第0站信息请求 
+ *
  * ftrCartCtl Ver:0.0.8.00.U200@20201123
  * 1.增加route information
  * 2.中间层加发到下一站的距离信息
@@ -343,6 +359,9 @@ public:
 
     void    SendCMD(UserCmd cmd,quint8 data1 = 0x00,quint8 data2 = 0x00,quint8 data3 = 0x00);
 
+#if(CREATE_UPDATEALLAPP_SCRIPT_USED)
+    void CreateUpdateScript(void);
+#endif
     //check&modify update.sh
     void CheckUpdateScript(void);
     //tx cmd function
@@ -382,7 +401,7 @@ public:
 
 public slots:
     void SetToPushInWorkSlot();
-    void TKeyClickedInVTKSlot();
+//    void TKeyClickedInVTKSlot();
 #if(CREATE_MAP_USED)
     void CreateMapSlot(QString station,quint16 dist,qint16 maxSpeed,bool face,bool isFirstStation);
     void loadRount(QString fileName);
@@ -613,6 +632,7 @@ private:
     quint16         defaultFixedDist;
     quint16         distBtStation;
     quint16         remainDistToStation;
+    quint16         remainDistToStationTxToEBox;
 
 #if(STREAMLIT_USED)
     QProcess *streamlitProcess;
@@ -638,6 +658,11 @@ private:
 
     QString         stationInfoToSocket;
     bool            retrySendStationInfoToSocketFlag;
+    quint8          retrySendStationInfoCnt;
+
+    QTime           *timeElapsedGotODOToMark;
+    QTime           *timeElapsedGotMarkToSendInfo;
+    bool            stationInfoUpdateFlag;
 };
 
 #endif // FTR_CTR3SPEEDCTL_H

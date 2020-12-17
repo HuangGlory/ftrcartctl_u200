@@ -1,0 +1,375 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# @Project  :updateAllApp
+# @File     :updateAllApp
+# @Author   :Glory.Huang
+# @Email    :yivi.huang@ftrsystems.com
+# @DateTime :2020/10/30@13:16
+# @IDE      :Pycharm
+# @Version  :1.0
+# 1.0
+# 1.first Create
+#
+
+
+import re
+import sys
+import os
+import hashlib
+import subprocess
+import time
+import RPi.GPIO as GPIO
+
+EBOX_FIRMWARE_DIR = "/tmp/EBox/"
+FTRCARTCTL_FIRMWARE_DIR = "/tmp/ftrCartCtl/"
+VISION_FIRMWARE_DIR = "/tmp/vision/"
+APPSER_FIRMWARE_DIR = "/tmp/AppServer/"
+
+EBOX_APP_DIR = "/home/pi/ftrCartCtl/download/EBox/"
+FTRCARTCTL_APP_DIR = "/home/pi/ftrCartCtl/"
+VISION_APP_DIR = "/home/pi/vision/"
+APPSER_APP_DIR = "/home/pi/Lz"
+
+EBOX_UPDATEURL_DIR = "/home/pi/ftrCartCtl/download/EBox/"
+FTRCARTCTL_UPDATEURL_DIR = "/home/pi/ftrCartCtl/download/"
+VISION_UPDATEURL_DIR = "/home/pi/Downloads/"
+APPSER_UPDATEURL_DIR = "/home/pi/Lz/download"
+
+UPDATE_FILE_NAME = '/tmp/update.tgz'
+
+PROGRESS_FILE_NAME = '/tmp/progress'
+
+lamp_pin = 21;#29
+
+def md5hex(word):
+    """ MD5加密算法，返回32位小写16进制符号
+    """
+    if isinstance(word, unicode):
+        word = word.encode("utf-8")
+    elif not isinstance(word, str):
+        word = str(word)
+    m = hashlib.md5()
+    m.update(word)
+    return m.hexdigest()
+
+
+def md5sum(filename):
+    """ 计算文件的MD5值
+    """
+    fd = open(filename, "rb")
+    fcont = fd.read()
+    fd.close()
+    fmd5 = hashlib.md5(fcont)
+    return fmd5.hexdigest()
+
+
+def runScript(cmd):
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    log = ""
+    for i in iter(p.stdout.readline, 'b'):
+        info = i.decode()
+        log = log + info
+        # print(log)
+        if len(i) == 0:
+            break;
+
+    print(log)
+    os.system('sync;sync;sync;sync')
+
+
+def runScriptEBox(cmd):
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    log = ""
+    for i in iter(p.stdout.readline, 'b'):
+        info = i.decode()
+        if not info.__contains__('Transferring...'):
+            log = log + '\n' + info
+
+        print(info)
+
+        if info.__contains__("All Finished 100%!"):
+            print(log)
+            return True
+        if info.__contains__('Timeout'):
+            return False
+
+        if len(i) == 0:
+            break;
+    # print(log)
+    return False
+
+
+def runScriptVision(cmd,value,fp):
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    log = ""
+    for i in iter(p.stdout.readline, 'b'):
+        info = i.decode()
+        if info.__contains__('good') or info.__contains__('[1] update vision necessary') or info.__contains__(
+                '[2] install necessary packages'):
+            print(info)
+            value = value + 5
+            print("PROGRESS:",value,"%")
+            fp.write("PROGRESS:{0} %\n".format(value));
+            progressFP.flush();
+            GPIO.output(lamp_pin, GPIO.HIGH);
+            time.sleep(1);
+            GPIO.output(lamp_pin, GPIO.LOW);
+
+        if not info.__contains__('removed') and not info.__contains__('vision/') and not info.__contains__('setup/'):
+            # st.write(info)
+            # log = log + '\n' + info
+            print(info)
+        if info.__contains__('finished'):
+            print(info)
+            value = value + 10
+            print("PROGRESS:", value,"%")
+            fp.write("PROGRESS:{0} %\n".format(value));
+            progressFP.flush();
+
+            GPIO.output(lamp_pin, GPIO.HIGH);
+            time.sleep(1);
+            GPIO.output(lamp_pin, GPIO.LOW);
+
+            return True
+        if len(i) == 0:
+            break
+    return False
+
+
+if __name__ == '__main__':
+    downloadEBoxResult = False
+    downloadftrCartCtlResult = False;
+    downloadAppServerResult = False
+    downloadVisionResult = False;
+    upgradeEBoxResult = False;
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(lamp_pin, GPIO.OUT, initial=GPIO.HIGH);
+
+    GPIO.output(lamp_pin,GPIO.HIGH);
+    time.sleep(1);
+    GPIO.output(lamp_pin, GPIO.LOW);
+
+    progressFP = open(PROGRESS_FILE_NAME,'w');
+    progressFP.truncate();
+
+    if(os.path.exists(UPDATE_FILE_NAME)):
+        print('start to deploy')
+        os.system('sync;sync')
+        cmd = 'sudo tar -zxvf ' + UPDATE_FILE_NAME + ' -C /tmp/';
+        os.system(cmd)
+        print(cmd, "......Finished!\n")
+        time.sleep(1)
+        print("PROGRESS:",5,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(5));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        ########bellow tar Ebox####################
+        md5fileName = ''
+        tgzfileName = ''
+        for file in os.listdir(EBOX_FIRMWARE_DIR):
+            if file.__contains__('.md5'):
+                md5fileName = EBOX_FIRMWARE_DIR + file
+            if file.__contains__('.tgz'):
+                tgzfileName = EBOX_FIRMWARE_DIR + file
+
+        md5Calc = md5sum(tgzfileName)
+        md5Got = ''
+        with open(md5fileName, 'r') as fp:
+            fcont = fp.read()
+            md5Got = fcont.split(' ')[0].replace('\n', '');
+
+        if md5Got == md5Calc and os.path.getsize(tgzfileName) != 0:
+            downloadEBoxResult = True
+
+            cmd = 'sudo tar -zxvf ' + tgzfileName + ' -C ' + EBOX_APP_DIR
+            runScript(cmd)
+            os.system('sync;sync')
+            print(cmd, "......Finished!\n")
+        else:
+            print("Faill!!\n\n")
+            progressFP.write("EBox FAIL!!\n");
+
+        time.sleep(1)
+        print("PROGRESS:",10,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(10));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        ########bellow upgrade ftrCartCtl####################
+        md5fileName = ''
+        tgzfileName = ''
+        for file in os.listdir(FTRCARTCTL_FIRMWARE_DIR):
+            if file.__contains__('.md5'):
+                md5fileName = FTRCARTCTL_FIRMWARE_DIR + file
+            if file.__contains__('.tgz'):
+                tgzfileName = FTRCARTCTL_FIRMWARE_DIR + file
+
+        md5Calc = md5sum(tgzfileName)
+
+        md5Got = ''
+        with open(md5fileName, 'r') as fp:
+            fcont = fp.read()
+            md5Got = fcont.split(' ')[0].replace('\n', '');
+
+        if md5Got == md5Calc and os.path.getsize(tgzfileName) != 0:
+            downloadftrCartCtlResult = True;
+
+            cmd = 'sudo tar -zxvf ' + tgzfileName + ' -C ' + FTRCARTCTL_APP_DIR
+            runScript(cmd)
+            os.system('sync;sync')
+            print(cmd, "......Finished!\n")
+        else:
+            print("Fail!!\n\n")
+            progressFP.write("ftrCartCtl FAIL!!\n");
+
+        time.sleep(1)
+        print("PROGRESS:",20,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(20));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        ########bellow upgrade AppServer####################
+        md5fileName = ''
+        tgzfileName = ''
+        for file in os.listdir(APPSER_FIRMWARE_DIR):
+            if file.__contains__('.md5'):
+                md5fileName = APPSER_FIRMWARE_DIR + file
+            if file.__contains__('.tgz'):
+                tgzfileName = APPSER_FIRMWARE_DIR + file
+
+        md5Calc = md5sum(tgzfileName)
+
+        md5Got = ''
+        with open(md5fileName, 'r') as fp:
+            fcont = fp.read()
+            md5Got = fcont.split(' ')[0].replace('\n', '');
+
+        if md5Got == md5Calc and os.path.getsize(tgzfileName) != 0:
+            downloadAppServerResult = True
+
+            cmd = 'sudo tar -zxvf ' + tgzfileName + ' -C ' + APPSER_APP_DIR
+            # cmd = 'sudo tar -zxvf /tmp/AppServer/APPServer_[V1.0.0.16].tgz -C /tmp/Lz'
+
+            runScript(cmd)
+            os.system('sync;sync')
+            print(cmd, "......Finished!\n")
+        else:
+            print("Fail!!\n\n")
+            progressFP.write("AppServer FAIL!!\n");
+
+        time.sleep(1)
+        print("PROGRESS:",30,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(30));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        ########bellow upgrade vision####################
+        md5fileName = ''
+        tgzfileName = ''
+        for file in os.listdir(VISION_FIRMWARE_DIR):
+            if file.__contains__('.md5'):
+                md5fileName = VISION_FIRMWARE_DIR + file
+            if file.__contains__('.tgz'):
+                tgzfileName = VISION_FIRMWARE_DIR + file
+        visionFirmwareInLocal = 'file://' + VISION_FIRMWARE_DIR + tgzfileName.split('/')[-1].replace('.tgz', '')
+        with open('/tmp/updateURL', 'w') as fp:
+            fp.seek(0)
+            fp.truncate();
+            fp.write(visionFirmwareInLocal)
+            fp.flush()
+            fp.close()
+        print(visionFirmwareInLocal)
+        cmd = "sudo cp -f /tmp/updateURL " + VISION_UPDATEURL_DIR
+        os.system(cmd)
+        print(cmd)
+        time.sleep(1)
+        print("PROGRESS:",40,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(40));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        cmd = "sudo /home/pi/Downloads/swupdate2.sh"
+        result = runScriptVision(cmd,40,progressFP)
+        time.sleep(1)
+        print("PROGRESS:",80,"%")
+        progressFP.write("PROGRESS:{0} %\n".format(80));
+        progressFP.flush();
+
+        GPIO.output(lamp_pin, GPIO.HIGH);
+        time.sleep(1);
+        GPIO.output(lamp_pin, GPIO.LOW);
+
+        if result:
+            downloadVisionResult = True;
+            print('---vision deploy successful---')
+
+            print("---Start Update EBox Firmware---")
+            cmd = "sudo kill $(pidof ftrCartCtl)"
+            os.system(cmd)
+
+            cmd = "sudo " + EBOX_APP_DIR + "ftrEBoxUpdate"
+            print(cmd)
+            time.sleep(1)
+            print("PROGRESS:", 85, "%")
+            progressFP.write("PROGRESS:{0} %\n".format(85));
+
+            GPIO.output(lamp_pin, GPIO.HIGH);
+            time.sleep(1);
+            GPIO.output(lamp_pin, GPIO.LOW);
+
+            result = runScriptEBox(cmd)
+
+            if result:
+                upgradeEBoxResult = True;
+                print('---EBox deploy successful---')
+
+                time.sleep(1)
+                print('---All Finished and SUCCESSFUL!!!---')
+                time.sleep(1)
+                print("PROGRESS:",100,"%")
+                progressFP.write("PROGRESS:{0} %\n".format(100));
+                progressFP.flush();
+
+                GPIO.output(lamp_pin, GPIO.HIGH);
+                time.sleep(1);
+                GPIO.output(lamp_pin, GPIO.LOW);
+            else:
+                print('---EBox deploy FAIL---')
+                progressFP.write("EBox FAIL!!");
+                progressFP.flush();
+        else:
+            print('---vision deploy FAIL---')
+            progressFP.write("VISION FAIL!!\n");
+            progressFP.flush();
+
+    progressFP.flush();
+    progressFP.close();
+
+    while True:
+        if downloadEBoxResult and downloadftrCartCtlResult and downloadAppServerResult and downloadVisionResult and upgradeEBoxResult:
+            time.sleep(1.7);
+            GPIO.output(lamp_pin,GPIO.HIGH);
+            time.sleep(0.3);
+            GPIO.output(lamp_pin, GPIO.LOW);
+        else:
+            time.sleep(0.2);
+            GPIO.output(lamp_pin,GPIO.HIGH);
+            time.sleep(0.2);
+            GPIO.output(lamp_pin, GPIO.LOW);

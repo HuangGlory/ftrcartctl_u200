@@ -255,7 +255,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         //if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
 //        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
 //        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
-        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        if(VTPInfo.GotMarkFlag && (600 >= VTPInfo.ToStationDist) && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
         {            
             if(this->FaceDirFlag)//forward
             {
@@ -275,7 +275,7 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
             }
         #endif
 
-            this->remainDistToStation = VTPInfo.ToStationDist;
+            this->remainDistToStation = VTPInfo.ToStationDist + MOTOR_SHAFT_TO_FW_PANEL_DIST;
         #if(ROUNT_SIMULATOR)
             if(this->MarkCntRecord == (this->stationsInRoute - 1))
             {
@@ -312,8 +312,14 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
                 qDebug()<<"StationNormal:"<<VTPInfo.StationName<<this->StationName4VTP<<this->FaceDirFlag<<this->MarkCntRecord<<VTPInfo.ToStationDist;
             }
         #endif
-
-            this->ODOMark4VTPStationCalc = (this->RxInfo.ODO + VTPInfo.ToStationDist);
+            quint16 detalODO = (quint16)(this->timeElapsedGotODOToMark->elapsed()*0.25 + 0.5);
+            if(detalODO < 35)
+            {
+                this->remainDistToStation -= detalODO;
+            }
+            this->timeElapsedGotMarkToSendInfo->start();
+            this->ODOMark4VTPStationCalc = (this->RxInfo.ODO + detalODO + VTPInfo.ToStationDist);
+            qDebug()<<"ELT:"<<this->timeElapsedGotODOToMark->elapsed()<<this->remainDistToStation;
         }
     #endif
 

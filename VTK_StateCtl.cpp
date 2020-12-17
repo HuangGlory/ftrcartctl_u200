@@ -34,11 +34,11 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
         ByteArray[7]=this->VTKInfo.CtlByte & (~0x08);
     }
 
-    if(this->VTKInfo.TKeyClickedFlag)
-    {
-        this->VTKInfo.TKeyClickedFlag = false;
-        ByteArray[7]=this->VTKInfo.CtlByte | 0x02;
-    }
+//    if(this->VTKInfo.TKeyClickedFlag)
+//    {
+//        this->VTKInfo.TKeyClickedFlag = false;
+//        ByteArray[7]=this->VTKInfo.CtlByte | 0x02;
+//    }
 
 //    qDebug("ctlByte:%x,%d",ByteArray.at(7),this->VTKInfo.ToPushFlag);
 #if(PLATFORM == PLATFORM_R3)
