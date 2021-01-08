@@ -39,7 +39,8 @@ UPDATE_FILE_NAME = '/tmp/update.tgz'
 
 PROGRESS_FILE_NAME = '/tmp/progress'
 
-lamp_pin = 21;#29
+lamp_pin = 21;  # 29
+
 
 def md5hex(word):
     """ MD5加密算法，返回32位小写16进制符号
@@ -78,12 +79,20 @@ def runScript(cmd):
 
 
 def runScriptEBox(cmd):
+    eboxlogFP = open("/tmp/Eboxlog.log", 'w');
+    eboxlogFP.truncate();
+
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     log = ""
     for i in iter(p.stdout.readline, 'b'):
+        GPIO.output(lamp_pin, GPIO.LOW);
+
         info = i.decode()
+        eboxlogFP.write(info);
+
         if not info.__contains__('Transferring...'):
             log = log + '\n' + info
+            GPIO.output(lamp_pin, GPIO.HIGH);
 
         print(info)
 
@@ -96,10 +105,12 @@ def runScriptEBox(cmd):
         if len(i) == 0:
             break;
     # print(log)
+    eboxlogFP.flush();
+    eboxlogFP.close();
     return False
 
 
-def runScriptVision(cmd,value,fp):
+def runScriptVision(cmd, value, fp):
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     log = ""
     for i in iter(p.stdout.readline, 'b'):
@@ -108,7 +119,7 @@ def runScriptVision(cmd,value,fp):
                 '[2] install necessary packages'):
             print(info)
             value = value + 5
-            print("PROGRESS:",value,"%")
+            print("PROGRESS:", value, "%")
             fp.write("PROGRESS:{0} %\n".format(value));
             progressFP.flush();
             GPIO.output(lamp_pin, GPIO.HIGH);
@@ -122,7 +133,7 @@ def runScriptVision(cmd,value,fp):
         if info.__contains__('finished'):
             print(info)
             value = value + 10
-            print("PROGRESS:", value,"%")
+            print("PROGRESS:", value, "%")
             fp.write("PROGRESS:{0} %\n".format(value));
             progressFP.flush();
 
@@ -143,24 +154,25 @@ if __name__ == '__main__':
     downloadVisionResult = False;
     upgradeEBoxResult = False;
 
+    GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(lamp_pin, GPIO.OUT, initial=GPIO.HIGH);
 
-    GPIO.output(lamp_pin,GPIO.HIGH);
+    GPIO.output(lamp_pin, GPIO.HIGH);
     time.sleep(1);
     GPIO.output(lamp_pin, GPIO.LOW);
 
-    progressFP = open(PROGRESS_FILE_NAME,'w');
+    progressFP = open(PROGRESS_FILE_NAME, 'w');
     progressFP.truncate();
 
-    if(os.path.exists(UPDATE_FILE_NAME)):
+    if (os.path.exists(UPDATE_FILE_NAME)):
         print('start to deploy')
         os.system('sync;sync')
         cmd = 'sudo tar -zxvf ' + UPDATE_FILE_NAME + ' -C /tmp/';
         os.system(cmd)
         print(cmd, "......Finished!\n")
         time.sleep(1)
-        print("PROGRESS:",5,"%")
+        print("PROGRESS:", 5, "%")
         progressFP.write("PROGRESS:{0} %\n".format(5));
         progressFP.flush();
 
@@ -195,7 +207,7 @@ if __name__ == '__main__':
             progressFP.write("EBox FAIL!!\n");
 
         time.sleep(1)
-        print("PROGRESS:",10,"%")
+        print("PROGRESS:", 10, "%")
         progressFP.write("PROGRESS:{0} %\n".format(10));
         progressFP.flush();
 
@@ -231,7 +243,7 @@ if __name__ == '__main__':
             progressFP.write("ftrCartCtl FAIL!!\n");
 
         time.sleep(1)
-        print("PROGRESS:",20,"%")
+        print("PROGRESS:", 20, "%")
         progressFP.write("PROGRESS:{0} %\n".format(20));
         progressFP.flush();
 
@@ -269,7 +281,7 @@ if __name__ == '__main__':
             progressFP.write("AppServer FAIL!!\n");
 
         time.sleep(1)
-        print("PROGRESS:",30,"%")
+        print("PROGRESS:", 30, "%")
         progressFP.write("PROGRESS:{0} %\n".format(30));
         progressFP.flush();
 
@@ -297,7 +309,7 @@ if __name__ == '__main__':
         os.system(cmd)
         print(cmd)
         time.sleep(1)
-        print("PROGRESS:",40,"%")
+        print("PROGRESS:", 40, "%")
         progressFP.write("PROGRESS:{0} %\n".format(40));
         progressFP.flush();
 
@@ -306,9 +318,9 @@ if __name__ == '__main__':
         GPIO.output(lamp_pin, GPIO.LOW);
 
         cmd = "sudo /home/pi/Downloads/swupdate2.sh"
-        result = runScriptVision(cmd,40,progressFP)
+        result = runScriptVision(cmd, 40, progressFP)
         time.sleep(1)
-        print("PROGRESS:",80,"%")
+        print("PROGRESS:", 80, "%")
         progressFP.write("PROGRESS:{0} %\n".format(80));
         progressFP.flush();
 
@@ -343,7 +355,7 @@ if __name__ == '__main__':
                 time.sleep(1)
                 print('---All Finished and SUCCESSFUL!!!---')
                 time.sleep(1)
-                print("PROGRESS:",100,"%")
+                print("PROGRESS:", 100, "%")
                 progressFP.write("PROGRESS:{0} %\n".format(100));
                 progressFP.flush();
 
@@ -365,11 +377,11 @@ if __name__ == '__main__':
     while True:
         if downloadEBoxResult and downloadftrCartCtlResult and downloadAppServerResult and downloadVisionResult and upgradeEBoxResult:
             time.sleep(1.7);
-            GPIO.output(lamp_pin,GPIO.HIGH);
+            GPIO.output(lamp_pin, GPIO.HIGH);
             time.sleep(0.3);
             GPIO.output(lamp_pin, GPIO.LOW);
         else:
             time.sleep(0.2);
-            GPIO.output(lamp_pin,GPIO.HIGH);
+            GPIO.output(lamp_pin, GPIO.HIGH);
             time.sleep(0.2);
             GPIO.output(lamp_pin, GPIO.LOW);

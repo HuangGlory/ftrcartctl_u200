@@ -65,13 +65,31 @@ using namespace std;
 #define FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME ("/tmp/cart_status_vision_pipe_input")
 
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
+#define WORKING_PATH_NAME               ("/home/pi/ftrCartCtl/")
 
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.9.00.U200@20201211\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.12.00.U200@20210107\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.12.00.U200@20210107
+ * 1.4kmph时增加减速距离@VTP，可以看到十字，停站精度
+ *
+ * ftrCartCtl Ver:0.0.11.00.U200@20201231
+ * 1.USED_DEFAULT_UTURN_OA_DISABLE
+ *
+ * ftrCartCtl Ver:0.0.10.01.U200@20201224
+ * 1.VTK下加report OA Dist与OA状态
+ * 2.VTP看十字卡600放开，不设置限制
+ * 3.quick oa时发socket信息
+ * 4.删除无用tgz，md5文件
+ *
+ * ftrCartCtl Ver:0.0.10.00.U200@20201222
+ * 1.motor release quickly in VTK时，进入Pause状态，关掉camera
+ * 2.disable modify UpDateApp.py
+ * 3.快捷开关oa时，加声音提示
+ *
  * ftrCartCtl Ver:0.0.9.00.U200@20201211
  * 1.计算收到十字到发站点信息时间差，提高到站精度
  * 2.fix sometimes cann't enter Tape mode from phone
@@ -654,6 +672,7 @@ private:
     bool            RouteRepeatFlag;
     bool            isTheLastStationFlag;
     bool            startToCatchCrossFlag;
+    bool            toCloseCameraFlag;
 #endif
 
     QString         stationInfoToSocket;

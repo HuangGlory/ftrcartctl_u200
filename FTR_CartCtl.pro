@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.9.00.U200@20201211
+TARGET = ftrCartCtl_V0.0.12.00.U200@20210107
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings

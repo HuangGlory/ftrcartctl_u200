@@ -15,6 +15,7 @@
 #define ROUNT_USED                      (1)
 #define ROUNT_SIMULATOR                 (0)
 #define CREATE_UPDATEALLAPP_SCRIPT_USED (1)
+#define USED_DEFAULT_UTURN_OA_DISABLE   (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -665,7 +666,7 @@ typedef struct _VTKInfo_t
 
 typedef struct _CtlByteFlag_t
 {
-    quint8 dump0 : 1;
+    quint8 OABeepSound : 1;
     quint8 TKeyClicked : 1;
     quint8 OASetOnStation : 1;
     quint8 MotorReleaseInWork : 1;

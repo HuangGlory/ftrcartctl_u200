@@ -250,12 +250,17 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
             qDebug()<<"StationN:"<<this->StationName4VTP<<this->FaceDirFlag;
         }
     #else
+        if(VTPInfo.GotMarkFlag)
+        {
+            qDebug()<<"ToCrossD:"<<VTPInfo.ToStationDist<<this->StartActionFlag<<(this->RxInfo.ODO - this->ODOMark4VTPStationCalc);
+        }
 //        qDebug()<<VTPInfo.GotMarkFlag<<this->StartActionFlag<<this->SpeedUpAndDownState<<abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc);
         //Got the mark in speed down and no in arc turning
         //if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->InArcTurningFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
 //        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (!this->SpeedUpAndDownState) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
 //        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && (abs(this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
-        if(VTPInfo.GotMarkFlag && (600 >= VTPInfo.ToStationDist) && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+//        if(VTPInfo.GotMarkFlag && (600 >= VTPInfo.ToStationDist) && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
+        if(VTPInfo.GotMarkFlag && (!this->StartActionFlag) && ((this->RxInfo.ODO - this->ODOMark4VTPStationCalc) >= this->distBtStation))
         {            
             if(this->FaceDirFlag)//forward
             {

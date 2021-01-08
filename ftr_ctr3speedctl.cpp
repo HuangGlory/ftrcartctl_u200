@@ -18,6 +18,9 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
 
+    this->cnt4IntoConfigModePNGToggle = 0;
+    this->cnt4ResetWIFIPNGToggle = 0;
+
     this->remainDistToStationTxToEBox = 0;
     this->stationInfoToSocket = "";
     this->retrySendStationInfoToSocketFlag = false;
@@ -184,6 +187,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
         }
     }
 
+    //delete old log files
     {
         QDir dir(LOG_PATH_NAME);
         dir.setFilter(QDir::Files);
@@ -201,7 +205,18 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
                 //qDebug()<<LOG_PATH_NAME + fileStr<<detTime;
             }
         }
+    }
 
+    //delete unuse files *.tgz,*.md5
+    {
+        QDir dir(WORKING_PATH_NAME);
+        foreach(QFileInfo mfi, dir.entryInfoList())
+        {
+            if((mfi.isFile() && mfi.suffix() == "tgz") || (mfi.isFile() && mfi.suffix() == "md5"))
+            {
+                dir.remove(mfi.fileName());
+            }
+        }
     }
 
     this->CheckUpdateScript();
@@ -602,6 +617,22 @@ bool FTR_CTR3SpeedCtl::SettingOAGlobalBaseJsonSlot(void)
                 this->SettingJsonFile->close();
         #endif
                 qDebug()<<"SOAG:"<<this->SettingJsonFileName<<this->GlobaOAStateFlag<<"Successful!";
+                if(this->GlobaOAStateFlag)
+                {
+                    this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_2);
+                    if(this->SocketReadyFlag)
+                    {
+                        this->tcpSocketSendMessageSlot("QuickOA:1");
+                    }
+                }
+                else
+                {
+                    this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_4);
+                    if(this->SocketReadyFlag)
+                    {
+                        this->tcpSocketSendMessageSlot("QuickOA:0");
+                    }
+                }
             }
             else
             {
@@ -1060,7 +1091,15 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     }
                 }
 
-                if((walkDist > START_TO_SPEED_UP_DIST) && (START_TO_SPEED_DOWN_DIST < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
+                volatile uint16_t startToSpeedDownDist = START_TO_SPEED_DOWN_DIST;
+
+                if(this->VTPInfo.MaxSpeed > 800)
+                {
+                    startToSpeedDownDist = 4000;
+//                    qDebug()<<this->VTPInfo.MaxSpeed<<startToSpeedDownDist;
+                }
+
+                if((walkDist > START_TO_SPEED_UP_DIST) && (startToSpeedDownDist < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
                 {
                     this->VTPInfo.SpeedCtl = SPEED_CTL_UP;
 //                    qDebug()<<"SU:";
@@ -1230,11 +1269,17 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         {
             //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO,toCatchCross
             QString InfoToVisionStr;
-            InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8,%9\n").arg(this->RxInfo.CartState).arg(this->RxInfo.PauseNGoState)
+            this->toCloseCameraFlag = false;
+            if(this->RxInfo.PauseNGoState || this->VTKInfo.ToPushFlag)
+            {
+                this->toCloseCameraFlag = true;
+            }
+
+            InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8,%9\n").arg(this->RxInfo.CartState).arg(this->toCloseCameraFlag)
                             .arg(this->SpeedUpAndDownState).arg(this->InArcTurningFlag).arg(this->StartActionFlag)
                             .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO)
                             .arg(this->startToCatchCrossFlag);
-//            qDebug()<<InfoToVisionStr;
+            //qDebug()<<InfoToVisionStr<<this->toCloseCameraFlag<<this->VTKInfo.ToPushFlag<<this->RxInfo.PauseNGoState;
             this->WriteInfoToVisionPipeSlot(InfoToVisionStr);
         }
     #endif
@@ -1486,10 +1531,11 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 QString CurrentTimeStr = QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
                 if(STATE_VTK == this->CartState)
                 {
-                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);Vel:(%5,%6);RVTK:(%7,%8);TVTK:(%9,%10)\n")
+                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);Vel:(%5,%6);RVTK:(%7,%8);TVTK:(%9,%10);OA(%11,%12,%13)\n")
                             .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
                             .arg(this->RxInfo.RightTargetSpeed).arg(this->RxInfo.MotorVelocity.linearV).arg(this->RxInfo.MotorVelocity.angularV)
-                            .arg(this->RxInfo.VTKDist).arg(this->RxInfo.VTKAngle).arg(this->VTKInfo.VTKDist).arg(this->VTKInfo.VTKAngle));
+                            .arg(this->RxInfo.VTKDist).arg(this->RxInfo.VTKAngle).arg(this->VTKInfo.VTKDist).arg(this->VTKInfo.VTKAngle)
+                            .arg(this->RxInfo.TOFMinDist).arg(this->RxInfo.USMinDist).arg(this->RxInfo.MultiFunction & (ObstBeDetectedBy2DBit | ObstBeDetectedByUSBit)));
                 }
                 else if(STATE_VTP == this->CartState)
                 {
@@ -1925,13 +1971,16 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                     this->SettingParameterFromJson.actionOnMark = (ActionOnCrossType_e)(obj.value("default_action_mark").toInt());
                     qDebug()<<"default_action_on_mark"<<this->SettingParameterFromJson.actionOnMark;
                 }
-
+            #if(USED_DEFAULT_UTURN_OA_DISABLE)
+                this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation = true;//obj.value("uturn_oa_dis").toBool();
+                qDebug()<<"uturn_oa_dis"<<this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation;
+            #else
                 if(obj.contains("uturn_oa_dis"))
                 {
                     this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation = obj.value("uturn_oa_dis").toBool();
                     qDebug()<<"uturn_oa_dis"<<this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation;
                 }
-
+            #endif
                 if(obj.contains("tof_oa_vtp"))
                 {
                     this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off = obj.value("tof_oa_vtp").toBool();
@@ -1973,7 +2022,12 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                     qDebug()<<"oa_avoiding_vtk"<<this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OAAvoidOn_Off;
                 }
             //end VTK parameter setting
-
+                if(obj.contains("oa_beep_sound"))
+                {
+                    this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OABeepSound = obj.value("oa_beep_sound").toBool();
+                    this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OABeepSound = obj.value("oa_beep_sound").toBool();
+                    qDebug()<<"oa_beep_sound"<<this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OABeepSound<<this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OABeepSound;
+                }
             //march parameter setting
                 if(obj.contains("tof_oa_march"))
                 {
@@ -2602,6 +2656,7 @@ void FTR_CTR3SpeedCtl::ResetWIFISlot(void)
     delete file;
 
     QString cmd = "sudo cp -f /home/pi/ftrCartCtl/wpa_supplicant.conf " + WPA_SUPPLICANT_CONF_FILE_NAME;
+    qDebug()<<cmd;
     QProcess *process = new QProcess();
     process->start(cmd);
     process->waitForStarted();
@@ -2612,6 +2667,7 @@ void FTR_CTR3SpeedCtl::ResetWIFISlot(void)
     process->waitForFinished();
 
     cmd = "wpa_cli -i wlan0 reconfig";
+    qDebug()<<cmd;
     process->start(cmd);
     process->waitForStarted();
     process->waitForFinished();
@@ -2793,7 +2849,7 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
     }
 
     //update Lz Python script
-#if(1)
+#if(0)
     QFileInfo *fileInfo= new QFileInfo("/home/pi/ftrCartCtl/UpDateApp.py");
     if(fileInfo->exists() && (fileInfo->size() != 0))
     {
