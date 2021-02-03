@@ -5,7 +5,8 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.12.00.U200@20210107
+TARGET = ftrCartCtl_V0.0.14.00.U200@20210122
+#TARGET = ftrCartCtl_V0.0.13.01.U200BLE@20210111
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -41,6 +42,7 @@ SOURCES += \
     readvtppipe_thread.cpp \
     sb_thread.cpp \
     stationattribute.cpp \
+    uwb_aoa.cpp \
     vtk_thread.cpp
 
 # Default rules for deployment.
@@ -68,6 +70,7 @@ HEADERS += \
     stationattribute.h \
     streamlitApp.h \
     updateScript.h \
+    uwb_aoa.h \
     vtk_thread.h \
     wifiConf.h
 

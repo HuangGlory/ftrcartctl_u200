@@ -1,5 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>file/updateAllApp</file>
+        <file>file/ui.py</file>
+        <file>file/autoRun.sh</file>
+        <file>file/settings.json</file>
+        <file>file/frpc.ini</file>
     </qresource>
 </RCC>

@@ -116,11 +116,46 @@ void FTR_CTR3SpeedCtl::WriteOutPipeSlot(QString str)
 void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
 {
     if(this->Wait4CameraReadyIndecateFlag) this->CartStateCtlProcess->SetCameraReadyFlagSlot(true);//camera ready
-    this->Wait4CameraReadyIndecateFlag = false;
+    this->VTKInfo.numOfPeople = VTKInfo.numOfPeople;
+    if(VTK_LOST_LEADER != VTKInfo.VTKDist) this->Wait4CameraReadyIndecateFlag = false;
+
+    if((this->VTKInfo.numOfPeople > 1) || (VTK_LOST_LEADER == VTKInfo.VTKDist))
+    {
+        this->itNeedComparisonFlag = true;
+        //qDebug()<<"NUM:"<<this->VTKInfo.numOfPeople;
+    }
+
+#if(UWB_USED)
+    #if(0)
+        if(VTK_LOST_LEADER == VTKInfo.VTKDist)
+        {
+            this->VTKInfo.VTKDist = VTKInfo.VTKDist;
+            this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+        }
+        else
+        {
+            this->VTKInfo.VTKDist = this->UWBRxInfo.dist;
+            this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+        }
+    #else
+        if(VTK_LOST_LEADER == VTKInfo.VTKDist)
+        {
+            this->VTKInfo.VTKDist = VTKInfo.VTKDist;
+            this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+        }
+        else
+        {
+            this->VTKInfo.VTKDist = VTKInfo.VTKDist;//this->UWBRxInfo.dist;
+            this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+        }
+    #endif
+#else
     this->VTKInfo.VTKDist = VTKInfo.VTKDist;
     this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+#endif
     this->VTK_RealTimeInfo();
-    //qDebug()<<VTKInfo.VTKDist<<VTKInfo.VTKAngle;
+    //qDebug()<<VTKInfo.numOfPeople<<VTKInfo.VTKDist<<VTKInfo.VTKAngle;
+    //qDebug()<<VTKInfo.VTKDist<<this->UWBRxInfo.dist<<VTKInfo.VTKAngle<<this->UWBRxInfo.angle;
 }
 
 void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)

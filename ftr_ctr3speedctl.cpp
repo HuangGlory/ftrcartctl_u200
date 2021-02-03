@@ -17,6 +17,9 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(PLATFORM == PLATFORM_R3)
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
+#if(UWB_USED)
+    qRegisterMetaType<UWBInfo_t>("UWBInfo_t");
+#endif
 
     this->cnt4IntoConfigModePNGToggle = 0;
     this->cnt4ResetWIFIPNGToggle = 0;
@@ -66,6 +69,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(CREATE_UPDATEALLAPP_SCRIPT_USED)
     this->CreateUpdateScript();
 #endif
+
+    this->updateUi();
+    this->updateAutoRunScript();
+    this->checkSettingsJsonFile();
 
     this->fileWatcher   = new QFileSystemWatcher;
 
@@ -142,6 +149,16 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->StartStreamlitUISlot();
 #endif
 
+#if(GET_SSID_USED)
+    this->updatefrpcFile();
+    this->frpServerProcess = new QProcess;
+    this->GetSSIDProcess = new QProcess;
+    this->frpServerProcessID = 0;
+    this->currentSSID = "";
+    connect(this->GetSSIDProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_GetSSIDReadOutputSlot()));
+    connect(this->frpServerProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_frpServerReadOutputSlot()));
+#endif
+
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
@@ -149,6 +166,13 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qDebug()<<"Pipe file ready";
 #endif
 
+#if(UWB_USED)
+    this->uwbApp = new UWB_AOA;
+    this->UWBRxInfo = {0};
+    this->invalidTargetCnt = 0;
+    this->lostTargetCnt = 0;
+    this->itNeedComparisonFlag = false;
+#endif
     this->tcpSocket                 = new QTcpSocket(this);
     this->tcpServer                 = new QTcpServer(this);
     this->tcpServer->listen(QHostAddress::Any,50006);//smart phone
@@ -220,6 +244,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     }
 
     this->CheckUpdateScript();
+    this->getVisionVersionInfoSlot();
 
     {
         QFile *file = new QFile(SETTING_WHEEL_DIAM_JSON_FILE_NAME);
@@ -401,6 +426,35 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #endif
 }
 
+#if(UWB_USED)
+void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
+{
+    int8_t angleTemp = this->UWBRxInfo.angle;
+
+    this->UWBRxInfo = info;
+    this->UWBRxInfo.angle = (int8_t)(0.75*angleTemp + 0.25*info.angle);
+    this->UWBRxInfo.dist -= 100;
+
+    if(((abs(this->UWBRxInfo.angle) > 60) || (abs(this->VTKInfo.VTKDist - this->UWBRxInfo.dist) > 1000)) && (this->VTKInfo.VTKDist != 0) &&\
+      (VTK_LOST_LEADER != this->VTKInfo.VTKDist) && this->itNeedComparisonFlag)//diff error
+    {
+        if(((abs(this->UWBRxInfo.angle) > 60) || (++this->invalidTargetCnt > 3)) && (!this->CartWantToPNGState))
+        {
+            this->invalidTargetCnt = 3;
+            this->CartWantToPNGState = true;//want to pause state
+            qDebug()<<"invalid target to Pause";
+        }
+        //qDebug()<<"invalid target:"<<this->UWBRxInfo.dist<<VTKInfo.VTKDist<<this->UWBRxInfo.angle<<VTKInfo.VTKAngle;
+    }
+    else
+    {
+        this->invalidTargetCnt = 0;
+
+    }
+    //qDebug()<<this->UWBRxInfo.dist<<this->UWBRxInfo.angle<<this->UWBRxInfo.quality<<this->VTKInfo.VTKDist;
+}
+#endif
+
 #if(STREAMLIT_USED)
 void FTR_CTR3SpeedCtl::on_readoutputSlot()
 {
@@ -468,6 +522,81 @@ void FTR_CTR3SpeedCtl::StopStreamlitUISlot(void)
         qDebug()<<"UI no Run:";
     }
 }
+#endif
+
+#if(GET_SSID_USED)
+void FTR_CTR3SpeedCtl::on_GetSSIDReadOutputSlot(void)
+{
+    QString str = this->GetSSIDProcess->readAllStandardOutput().replace("\"","").replace("\n","").data();   //将输出信息读取到编辑框
+    this->currentSSID = str.split(":").at(1);
+//    qDebug()<<this->currentSSID;
+}
+void FTR_CTR3SpeedCtl::getSSIDScript(void)
+{
+    QString cmd = "sudo iwgetid\n";
+    this->GetSSIDProcess->start(cmd);
+}
+
+void FTR_CTR3SpeedCtl::on_frpServerReadOutputSlot(void)
+{
+    QString str = this->frpServerProcess->readAllStandardOutput();
+    qDebug()<<str;
+}
+
+void FTR_CTR3SpeedCtl::startFRPServer(void)
+{
+    QString cmd = "/home/pi/frp_0.34.0/frpc -c /home/pi/frp_0.34.0/frpc.ini";
+    this->frpServerProcess->start(cmd);
+    this->frpServerProcessID = this->frpServerProcess->processId();
+    qDebug()<<cmd<<this->frpServerProcessID;
+}
+
+void FTR_CTR3SpeedCtl::killFRPServer(void)
+{
+    this->frpServerProcess->kill();
+    this->frpServerProcessID = 0;
+}
+void FTR_CTR3SpeedCtl::updatefrpcFile(void)
+{
+    QString oldShVersion="";
+    QFile *file = new QFile(FRPC_INI_DIST_DIR);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString shStr = file->readLine();
+                if(shStr.contains("# version:",Qt::CaseSensitive) || shStr.isNull() || shStr.isEmpty())
+                {
+                    oldShVersion = shStr.replace("# ","").replace("\n","").replace("\r","");
+                    break;
+                }
+            }while(1);
+
+            file->close();
+
+            if(oldShVersion != FRPC_INI_VERSION_INFO)
+            {
+                qDebug()<<FRPC_INI_DIST_DIR<<oldShVersion<<" ==> "<<FRPC_INI_VERSION_INFO;
+                QFile::remove(FRPC_INI_DIST_DIR);
+                if(!QFile::copy(FRPC_INI_FILE_NAME,FRPC_INI_DIST_DIR)) qDebug()<<"Fail!!";
+
+            }
+            else
+            {
+                qDebug()<<FRPC_INI_DIST_DIR<<"is:"<<FRPC_INI_VERSION_INFO;
+            }
+        }
+    }
+    else
+    {
+        QFile::copy(FRPC_INI_FILE_NAME,FRPC_INI_DIST_DIR);
+    }
+
+    delete file;
+}
+
 #endif
 
 void FTR_CTR3SpeedCtl::PNGButtonToggleSlot()
@@ -844,6 +973,13 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 #if(STREAMLIT_USED)
                     this->StartStreamlitUISlot();
                 #endif
+
+                #if(UWB_USED)
+                    this->UWBRxInfo = {0};
+                    //disconnect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    this->itNeedComparisonFlag = true;
+                #endif
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -972,6 +1108,13 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 #endif
 
                     this->VTKInfo.ToPushFlag = false;
+
+                #if(UWB_USED)
+                    this->UWBRxInfo = {0};
+                    this->VTKInfo.VTKDist = this->UWBRxInfo.dist;
+                    this->itNeedComparisonFlag = true;
+                    connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                #endif
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();
@@ -1173,7 +1316,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 }
 
 void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
-{//about 2s per cycle
+{//about 1s per cycle
     static quint32 tickCntPerSecond;
     ++tickCntPerSecond;
     //qDebug()<<tickCntPerSecond;
@@ -1228,6 +1371,18 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         if((tickCntPerSecond % 2) == 0)
         {
             if(this->Wait4CameraReadyIndecateFlag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_1);
+        #if(GET_SSID_USED)
+            this->getSSIDScript();
+            if(this->currentSSID == DEFAULT_SSID)
+            {
+                if(this->frpServerProcessID == 0) this->startFRPServer();
+            }
+            else
+            {
+                if(this->frpServerProcessID != 0) this->killFRPServer();
+            }
+
+        #endif
         }
 
         if((tickCntPerSecond % (quint8)(this->batCapacityInfo.ratio)) == 0)
@@ -1270,11 +1425,12 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
             //order:state,p&g,s_h/l,arc_turnning,startAction,curAction,noTapeAction,ODO,toCatchCross
             QString InfoToVisionStr;
             this->toCloseCameraFlag = false;
+        #if(1)
             if(this->RxInfo.PauseNGoState || this->VTKInfo.ToPushFlag)
             {
                 this->toCloseCameraFlag = true;
             }
-
+        #endif
             InfoToVisionStr = QString("%1,%2,%3,%4,%5,%6,%7,%8,%9\n").arg(this->RxInfo.CartState).arg(this->toCloseCameraFlag)
                             .arg(this->SpeedUpAndDownState).arg(this->InArcTurningFlag).arg(this->StartActionFlag)
                             .arg(this->VTPInfo.setAction).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO)
@@ -1282,6 +1438,25 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
             //qDebug()<<InfoToVisionStr<<this->toCloseCameraFlag<<this->VTKInfo.ToPushFlag<<this->RxInfo.PauseNGoState;
             this->WriteInfoToVisionPipeSlot(InfoToVisionStr);
         }
+    #endif
+    #if(UWB_USED)
+        static quint32 recordTime2ComparisonCtl;
+        if(this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag) this->itNeedComparisonFlag = true;
+
+        if((this->VTKInfo.numOfPeople == 1) &&  (this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag))
+        {
+            recordTime2ComparisonCtl = tickCntPerSecond;
+        }
+        else if(this->itNeedComparisonFlag)
+        {
+            if((tickCntPerSecond - recordTime2ComparisonCtl) >= 5)
+            {
+                this->itNeedComparisonFlag = false;
+                recordTime2ComparisonCtl = tickCntPerSecond;
+                qDebug()<<"Cancle Comparsion!";
+            }
+        }
+        //qDebug()<<"ComparsionS："<<this->itNeedComparisonFlag;
     #endif
     }
 }
@@ -1544,7 +1719,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                             .arg(this->RxInfo.RightTargetSpeed).arg(this->StartActionFlag).arg(this->InArcTurningFlag)
                             .arg(this->SpeedUpAndDownState).arg(this->InLostTapeTurningFlag));
                 }
-                else
+                else// if(0)
                 {
                     saveLogStr = CurrentTimeStr.append(QString(":CS:(%1);MS:%2;RS:(%3,%4);TS:(%5,%6);Vel:(%7,%8);Temp:(%9,%10);Vol:%11;VTK:(%12,%13);PnGS:%14;OA:(%15,%16);ODO:(%17);Pose(%18,%19,%20);HSW2:(%21,%22)\n")
                             .arg(QString::number(this->RxInfo.CartState) + ":" + QString::number(this->CartState)).arg(this->RxInfo.MotorState).arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
@@ -1552,6 +1727,10 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                             .arg(this->RxInfo.RightTemp).arg(this->RxInfo.BatVoltage).arg(this->RxInfo.VTKDist).arg(this->RxInfo.VTKAngle).arg(this->RxInfo.PauseNGoState)
                             .arg(this->RxInfo.TOFMinDist).arg(this->RxInfo.USMinDist).arg(this->RxInfo.ODO).arg(this->RxInfo.roll).arg(this->RxInfo.pitch).arg(this->RxInfo.yaw).arg(this->HSWant2State).arg(this->RxInfo.HSWantToCartState));
                 }
+//                else
+//                {
+//                    saveLogStr = CurrentTimeStr.append(QString(":UWB:(%1,%2)\n").arg(this->UWBRxInfo.dist).arg(this->UWBRxInfo.angle));
+//                }
             #endif
 
             #if(0)
@@ -1654,6 +1833,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                     #endif
 
                         QString verStr = QString("wiPi Ver:%1.%2\n").arg(major).arg(minor);
+                        verStr.append(this->visionVersionStr);
                         verStr.append(VERSION);
                         verStr.append(this->EboxVersionStr);
 
@@ -2864,6 +3044,125 @@ void FTR_CTR3SpeedCtl::CheckUpdateScript(void)
     delete fileInfo;
 #endif
     delete file;
+}
+
+void FTR_CTR3SpeedCtl::getVisionVersionInfoSlot(void)
+{
+    QFile *file = new QFile(VISION_VERSION_FILE_NAME);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            this->visionVersionStr = tr("vision:") + file->readAll();
+            qDebug()<<"vision V:"<<this->visionVersionStr;
+        }
+    }
+
+    delete file;
+}
+
+void FTR_CTR3SpeedCtl::updateUi(void)
+{
+    QString oldShVersion="";
+    QFile *file = new QFile(UI_SCRIPT_DIST_DIR);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString shStr = file->readLine();
+                if(shStr.contains("# Version:",Qt::CaseSensitive) || shStr.isNull() || shStr.isEmpty())
+                {
+                    oldShVersion = shStr.replace("# ","").replace("\n","").replace("\r","");
+                    break;
+                }
+            }while(1);
+
+            file->close();
+
+            if(oldShVersion != UI_SCRIPT_VERSION_INFO)
+            {
+                qDebug()<<UI_SCRIPT_DIST_DIR<<oldShVersion<<" ==> "<<UI_SCRIPT_VERSION_INFO;
+                QFile::remove(UI_SCRIPT_DIST_DIR);
+                if(!QFile::copy(UI_SCRIPT_FILE_NAME,UI_SCRIPT_DIST_DIR)) qDebug()<<"Fail!!";
+
+            }
+            else
+            {
+                qDebug()<<UI_SCRIPT_DIST_DIR<<"is:"<<UI_SCRIPT_VERSION_INFO;
+            }
+        }
+    }
+    else
+    {
+        QFile::copy(UI_SCRIPT_FILE_NAME,UI_SCRIPT_DIST_DIR);
+    }
+
+    delete file;
+}
+void FTR_CTR3SpeedCtl::updateAutoRunScript(void)
+{
+    QString oldShVersion="";
+    QFile *file = new QFile(AUTO_RUN_DIST_DIR);
+    if(file->exists())
+    {
+        if(file->open(QIODevice::ReadOnly))
+        {
+            do
+            {
+                QString shStr = file->readLine();
+                if(shStr.contains("# Version:",Qt::CaseSensitive) || shStr.isNull() || shStr.isEmpty())
+                {
+                    oldShVersion = shStr.replace("# ","").replace("\n","").replace("\r","");
+                    break;
+                }
+            }while(1);
+
+            file->close();
+
+            if(oldShVersion != AUTO_RUN_VERSION_INFO)
+            {
+                qDebug()<<AUTO_RUN_DIST_DIR<<oldShVersion<<" ==> "<<AUTO_RUN_VERSION_INFO;
+                QFile::remove(AUTO_RUN_DIST_DIR);
+                if(!QFile::copy(AUTO_RUN_FILE_NAME,AUTO_RUN_DIST_DIR)) qDebug()<<"Fail!!";
+                QFile::setPermissions(AUTO_RUN_DIST_DIR,QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther | QFileDevice::ExeOther);
+
+            }
+            else
+            {
+                qDebug()<<AUTO_RUN_DIST_DIR<<"is:"<<AUTO_RUN_VERSION_INFO;
+            }
+        }
+    }
+    else
+    {
+        QFile::copy(AUTO_RUN_FILE_NAME,AUTO_RUN_DIST_DIR);
+        QFile::setPermissions(AUTO_RUN_DIST_DIR,QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther | QFileDevice::ExeOther);
+    }
+
+    delete file;
+}
+void FTR_CTR3SpeedCtl::checkSettingsJsonFile(void)
+{
+    QFile *file = new QFile(SETTINGS_DIST_DIR);
+    if(file->exists())
+    {
+        if(file->size() == 0)
+        {
+            qDebug()<<SETTINGS_DIST_DIR<<"is Empty,Recover it now!";
+            QFile::remove(SETTINGS_DIST_DIR);
+            if(!QFile::copy(SETTINGS_FILE_NAME,SETTINGS_DIST_DIR)) qDebug()<<"Fail!!";
+        }
+        else
+        {
+            qDebug()<<SETTINGS_DIST_DIR<<"is good!";
+        }
+    }
+    else
+    {
+        QFile::copy(SETTINGS_FILE_NAME,SETTINGS_DIST_DIR);
+    }
 }
 
 void FTR_CTR3SpeedCtl::SetToPushInWorkSlot()

@@ -16,6 +16,8 @@
 #define ROUNT_SIMULATOR                 (0)
 #define CREATE_UPDATEALLAPP_SCRIPT_USED (1)
 #define USED_DEFAULT_UTURN_OA_DISABLE   (1)
+#define UWB_USED                        (1)
+#define GET_SSID_USED                   (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -44,6 +46,8 @@
 
     #define START_TO_SPEED_UP_DIST			(uint16_t)(1500)	//un:mm 1500
     #define START_TO_SPEED_DOWN_DIST 		(uint16_t)(2500) 	//un:mm 2000
+
+    #define VTK_LOST_LEADER         (65535)
 
     #define MOTOR_MOTOR_DIST	  	(520)//(680)//(560)//(700.0)//(520.0)   //cart width between center of tires
     #define ANGLE_ADJUST_FACTOR		(double)(0.9)
@@ -656,6 +660,7 @@ typedef struct _VTPInfo_t
 
 typedef struct _VTKInfo_t
 {
+    uint8_t  numOfPeople;
     uint16_t VTKDistBaseHeight;
     uint16_t VTKDist;
     int8_t   VTKAngle;

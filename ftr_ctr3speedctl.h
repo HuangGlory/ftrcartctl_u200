@@ -40,12 +40,38 @@
 #include "mapinfo.h"
 #endif
 
+#if(UWB_USED)
+#include <uwb_aoa.h>
+#endif
+
 #include <iostream>
 using namespace std;
+
+//vision version file name
+#define VISION_VERSION_FILE_NAME tr("/home/pi/vision/VERSION.md")
+
+//frpc.ini config file
+#define FRPC_INI_FILE_NAME        tr(":file//frpc.ini")
+#define FRPC_INI_DIST_DIR        tr("/home/pi/frp_0.34.0/frpc.ini")
+#define FRPC_INI_VERSION_INFO      tr("version:1.0.0")
 
 //updateAllApp script
 #define UPDATEALLAPP_SCRIPT_FILE_NAME        tr(":file//updateAllApp")
 #define UPDATEALLAPP_SCRIPT_DIST_DIR        tr("/tmp/updateAllApp")
+
+//UI script
+#define UI_SCRIPT_FILE_NAME        tr(":file//ui.py")
+#define UI_SCRIPT_DIST_DIR        tr("/home/pi/ftrCartCtl/ui.py")
+#define UI_SCRIPT_VERSION_INFO      tr("Version:0.0.4.0")
+
+//autoRun.sh
+#define AUTO_RUN_FILE_NAME        tr(":file//autoRun.sh")
+#define AUTO_RUN_DIST_DIR        tr("/home/pi/ftrCartCtl/autoRun.sh")
+#define AUTO_RUN_VERSION_INFO      tr("Version:1.0")
+
+//settings.json
+#define SETTINGS_FILE_NAME        tr(":file//settings.json")
+#define SETTINGS_DIST_DIR        tr("/home/pi/ftrCartCtl/settings.json")
 
 //map
 #define MAP_TEMP_FILE_NAME tr("/tmp/map.json")
@@ -67,12 +93,28 @@ using namespace std;
 #define LOG_PATH_NAME                   ("/home/pi/ftrCartCtl/log/")
 #define WORKING_PATH_NAME               ("/home/pi/ftrCartCtl/")
 
+#define DEFAULT_SSID                    ("FTR4Outdoor")
+
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.12.00.U200@20210107\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.14.00.U200@20210122\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.14.00.U200@20210122
+ * 1.使用UWB模块，解决跟错人的问题
+ * 2.加算法，解决跟错人的问题，不影响单人使用的性能
+ * 3.update frpc.ini file
+ * 4.VTK下进入pause时增加角度限制，
+ *
+ * ftrCartCtl Ver:0.0.13.01.U200@20210112
+ * 1.增加UWB选项
+ * 2.包含进autoRun.sh,settings.json,ui.py
+ * 3.recover settings.json when it's empty
+ * 4.it can update autoRun.sh and ui.py
+ * 5.ui.py can update AppServer and  versions.json file
+ * 6.VTK增加当前的人数
+ *
  * ftrCartCtl Ver:0.0.12.00.U200@20210107
  * 1.4kmph时增加减速距离@VTP，可以看到十字，停站精度
  *
@@ -380,6 +422,15 @@ public:
 #if(CREATE_UPDATEALLAPP_SCRIPT_USED)
     void CreateUpdateScript(void);
 #endif
+
+#if(GET_SSID_USED)
+    void updatefrpcFile(void);
+#endif
+
+    void updateUi(void);
+    void updateAutoRunScript(void);
+    void checkSettingsJsonFile(void);
+
     //check&modify update.sh
     void CheckUpdateScript(void);
     //tx cmd function
@@ -418,6 +469,10 @@ public:
     //static void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 
 public slots:
+#if(UWB_USED)
+    void UWBInfoSlot(UWBInfo_t info);
+#endif
+
     void SetToPushInWorkSlot();
 //    void TKeyClickedInVTKSlot();
 #if(CREATE_MAP_USED)
@@ -431,6 +486,14 @@ public slots:
     void CreateStreamlitAppSlot(void);
     void StartStreamlitUISlot(void);
     void StopStreamlitUISlot(void);
+#endif
+
+#if(GET_SSID_USED)
+    void on_frpServerReadOutputSlot(void);
+    void on_GetSSIDReadOutputSlot(void);
+    void getSSIDScript(void);
+    void startFRPServer(void);
+    void killFRPServer(void);
 #endif
 
 #if(BLUETOOTH_SERIAL_USED)
@@ -486,6 +549,8 @@ public slots:
     void calcCapacitySlot(double voltage);
 
     void ResetWIFISlot(void);
+
+    void getVisionVersionInfoSlot(void);
 signals:
     //void BroadcastCartStateSignal(CartState_e);
     //void ReadVTPInfoSignal();
@@ -682,6 +747,24 @@ private:
     QTime           *timeElapsedGotODOToMark;
     QTime           *timeElapsedGotMarkToSendInfo;
     bool            stationInfoUpdateFlag;
+
+#if(UWB_USED)
+    UWB_AOA         *uwbApp;
+    UWBInfo_t       UWBRxInfo;
+    quint8          invalidTargetCnt;
+    quint8          lostTargetCnt;
+    bool            itNeedComparisonFlag;
+#endif
+
+#if(GET_SSID_USED)
+    QProcess *GetSSIDProcess;
+    QProcess *frpServerProcess;
+    quint32  frpServerProcessID;
+    QString currentSSID;
+#endif
+
+    QString visionVersionStr;
+
 };
 
 #endif // FTR_CTR3SPEEDCTL_H
