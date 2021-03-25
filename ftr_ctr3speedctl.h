@@ -51,6 +51,9 @@ using namespace std;
 #define VISION_VERSION_FILE_NAME tr("/home/pi/vision/VERSION.md")
 
 //frpc.ini config file
+#define TARGET_FRP_FILE_NAME      tr("/tmp/frp_0.34.0.tgz")
+#define FRP_FILE_NAME             tr(":file//frp_0.34.0.tgz")
+#define FRP_PATH                  tr("/home/pi/frp_0.34.0/")
 #define FRPC_INI_FILE_NAME        tr(":file//frpc.ini")
 #define FRPC_INI_DIST_DIR        tr("/home/pi/frp_0.34.0/frpc.ini")
 #define FRPC_INI_VERSION_INFO      tr("version:1.0.0")
@@ -98,9 +101,15 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.14.00.U200@20210122\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.15.00.U200@20210224\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.15.00.U200@20210224
+ * 1.added speed up test
+ * 2.auto detect frp exist and auto tar it
+ * 3.disable UWB
+ * 4.修改VTP站点出来用1kmph修线的距离，第一次出站点时距离1.5m,后面站点用80cm
+ *
  * ftrCartCtl Ver:0.0.14.00.U200@20210122
  * 1.使用UWB模块，解决跟错人的问题
  * 2.加算法，解决跟错人的问题，不影响单人使用的性能
@@ -425,6 +434,10 @@ public:
 
 #if(GET_SSID_USED)
     void updatefrpcFile(void);
+#endif
+
+#if(AUTO_DETECT_FRP)
+    void autoDetectFRP(void);
 #endif
 
     void updateUi(void);

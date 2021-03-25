@@ -21,6 +21,9 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     qRegisterMetaType<UWBInfo_t>("UWBInfo_t");
 #endif
 
+    this->VTKInfo.ToPushFlag = false;
+    this->VTPInfo.ToPushFlag = false;
+
     this->cnt4IntoConfigModePNGToggle = 0;
     this->cnt4ResetWIFIPNGToggle = 0;
 
@@ -147,6 +150,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->streamlitProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_readoutputSlot()) );
 
     this->StartStreamlitUISlot();
+#endif
+
+#if(AUTO_DETECT_FRP)
+    this->autoDetectFRP();
 #endif
 
 #if(GET_SSID_USED)
@@ -426,21 +433,69 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #endif
 }
 
+#if(AUTO_DETECT_FRP)
+void FTR_CTR3SpeedCtl::autoDetectFRP(void)
+{
+    QDir dir(FRP_PATH);
+    if(!dir.exists())
+    {
+        QFile *file = new QFile(FRP_FILE_NAME);
+        if(file->exists())
+        {
+            if(file->copy(TARGET_FRP_FILE_NAME))
+            {
+                system("sync;sync;");
+                QString cmd = "sudo tar -zxvf " + TARGET_FRP_FILE_NAME + " -C /home/pi";
+                //QString cmd = "sudo tar -zxvf " + FRP_FILE_NAME + " -C /home/pi";
+                qDebug()<<FRP_PATH<<" not exists"<<cmd;
+
+                QProcess *process = new QProcess();
+                process->start(cmd);
+                process->waitForStarted();
+                process->waitForFinished();
+
+                process->start("sync");
+                process->waitForStarted();
+                process->waitForFinished();
+                system("sync;sync;");
+                system("sync;sync;");
+
+                delete process;
+            }
+            else
+            {
+                qDebug()<<"Fail!!";
+            }
+        }
+        delete file;
+    }
+    else
+    {
+        qDebug()<<FRP_PATH<<" is exists";
+    }
+}
+#endif
+
 #if(UWB_USED)
 void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
-{
+{    
     int8_t angleTemp = this->UWBRxInfo.angle;
+    uint16_t distTemp = this->UWBRxInfo.dist;
 
     this->UWBRxInfo = info;
     this->UWBRxInfo.angle = (int8_t)(0.75*angleTemp + 0.25*info.angle);
-    this->UWBRxInfo.dist -= 100;
+    this->UWBRxInfo.dist  = (uint16_t)(0.80*distTemp + 0.20*info.dist);
 
-    if(((abs(this->UWBRxInfo.angle) > 60) || (abs(this->VTKInfo.VTKDist - this->UWBRxInfo.dist) > 1000)) && (this->VTKInfo.VTKDist != 0) &&\
-      (VTK_LOST_LEADER != this->VTKInfo.VTKDist) && this->itNeedComparisonFlag)//diff error
+    this->UWBRxInfo.dist += 0;
+#if(0)//dist Comparison
+    if(((abs(this->VTKInfo.VTKDist - this->UWBRxInfo.dist) > 1000)) &&\
+       (this->VTKInfo.VTKDist != 0) && (VTK_LOST_LEADER != this->VTKInfo.VTKDist) &&\
+       this->itNeedComparisonFlag)//diff error
     {
-        if(((abs(this->UWBRxInfo.angle) > 60) || (++this->invalidTargetCnt > 3)) && (!this->CartWantToPNGState))
+        //if(((abs(this->UWBRxInfo.angle) > 60) || (++this->invalidTargetCnt > 3)))// && (!this->CartWantToPNGState))
+        if(++this->invalidTargetCnt > 2)// && (!this->CartWantToPNGState))
         {
-            this->invalidTargetCnt = 3;
+            this->invalidTargetCnt = 2;
             this->CartWantToPNGState = true;//want to pause state
             qDebug()<<"invalid target to Pause";
         }
@@ -451,7 +506,9 @@ void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
         this->invalidTargetCnt = 0;
 
     }
+#endif
     //qDebug()<<this->UWBRxInfo.dist<<this->UWBRxInfo.angle<<this->UWBRxInfo.quality<<this->VTKInfo.VTKDist;
+    //qDebug()<<this->UWBRxInfo.dist<<this->UWBRxInfo.angle;
 }
 #endif
 
@@ -976,10 +1033,15 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 
                 #if(UWB_USED)
                     this->UWBRxInfo = {0};
-                    //disconnect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
-                    connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    #if(UWB_TEST_USED)
+                        connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    #else
+                        disconnect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    #endif
                     this->itNeedComparisonFlag = true;
                 #endif
+                    this->VTKInfo.ToPushFlag = false;
+                    this->VTPInfo.ToPushFlag = false;
                 }
             #if(PLATFORM == PLATFORM_R3)
                 else
@@ -1178,6 +1240,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     this->isTheLastStationFlag  = false;
 
                     this->VTPInfo.ToPushFlag    = false;
+                    this->VTPInfo.FirstIntoVTPFlag = true;
                 }
                 if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
@@ -1211,6 +1274,10 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
             #endif
 
                 /*********calc dist to speed up&down***************************/
+            #if(0)//for speed up test
+                this->VTPInfo.ToStationDist = 15000;
+            #endif
+
                 qint32 walkDist = (this->RxInfo.ODO - this->ODOMark4VTPStationCalc);
                 if(0 == this->VTPInfo.ToStationDist)
                 {
@@ -1238,14 +1305,16 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 
                 if(this->VTPInfo.MaxSpeed > 800)
                 {
-                    startToSpeedDownDist = 4000;
+                    startToSpeedDownDist = START_TO_SPEED_DOWN_DIST_AT_HS;
 //                    qDebug()<<this->VTPInfo.MaxSpeed<<startToSpeedDownDist;
                 }
 
-                if((walkDist > START_TO_SPEED_UP_DIST) && (startToSpeedDownDist < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
+                if((((!this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST_1)) || ((this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST))) &&\
+                  (startToSpeedDownDist < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
                 {
+                    this->VTPInfo.FirstIntoVTPFlag = false;
                     this->VTPInfo.SpeedCtl = SPEED_CTL_UP;
-//                    qDebug()<<"SU:";
+                    qDebug()<<"SU:"<<walkDist;
                 }
                 else
                 {
@@ -1372,8 +1441,12 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         {
             if(this->Wait4CameraReadyIndecateFlag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_1);
         #if(GET_SSID_USED)
+        #if(FRP_SERVER_ALWAYS_ON)
+            if(1)
+        #else
             this->getSSIDScript();
             if(this->currentSSID == DEFAULT_SSID)
+        #endif
             {
                 if(this->frpServerProcessID == 0) this->startFRPServer();
             }
@@ -1449,12 +1522,14 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         }
         else if(this->itNeedComparisonFlag)
         {
-            if((tickCntPerSecond - recordTime2ComparisonCtl) >= 5)
+        #if(!COMPARSION_REALTIME)
+            if((tickCntPerSecond - recordTime2ComparisonCtl) >= 10)
             {
                 this->itNeedComparisonFlag = false;
                 recordTime2ComparisonCtl = tickCntPerSecond;
                 qDebug()<<"Cancle Comparsion!";
             }
+        #endif
         }
         //qDebug()<<"ComparsionS："<<this->itNeedComparisonFlag;
     #endif
@@ -1714,10 +1789,10 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 }
                 else if(STATE_VTP == this->CartState)
                 {
-                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);SA(%5);IAT(%6);SUDS(%7);LTT(%8)\n")
+                    saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);SA(%5);IAT(%6);SUDS(%7);LTT(%8);ODO:(%9)\n")
                             .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
                             .arg(this->RxInfo.RightTargetSpeed).arg(this->StartActionFlag).arg(this->InArcTurningFlag)
-                            .arg(this->SpeedUpAndDownState).arg(this->InLostTapeTurningFlag));
+                            .arg(this->SpeedUpAndDownState).arg(this->InLostTapeTurningFlag).arg(this->RxInfo.ODO));
                 }
                 else// if(0)
                 {

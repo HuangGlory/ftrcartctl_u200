@@ -119,14 +119,14 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
     this->VTKInfo.numOfPeople = VTKInfo.numOfPeople;
     if(VTK_LOST_LEADER != VTKInfo.VTKDist) this->Wait4CameraReadyIndecateFlag = false;
 
+#if(UWB_USED)
     if((this->VTKInfo.numOfPeople > 1) || (VTK_LOST_LEADER == VTKInfo.VTKDist))
     {
         this->itNeedComparisonFlag = true;
         //qDebug()<<"NUM:"<<this->VTKInfo.numOfPeople;
     }
 
-#if(UWB_USED)
-    #if(0)
+    #if(VTK_UWB_DIST_USED)
         if(VTK_LOST_LEADER == VTKInfo.VTKDist)
         {
             this->VTKInfo.VTKDist = VTKInfo.VTKDist;
@@ -134,7 +134,7 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
         }
         else
         {
-            this->VTKInfo.VTKDist = this->UWBRxInfo.dist;
+            this->VTKInfo.VTKDist = (VTKInfo.VTKDist > this->UWBRxInfo.dist)?(this->UWBRxInfo.dist):(VTKInfo.VTKDist);
             this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
         }
     #else
@@ -149,6 +149,26 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
             this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
         }
     #endif
+
+#if(1)//dist Comparison
+    /*if(((abs(VTKInfo.VTKDist - this->UWBRxInfo.dist) > 600)) &&*/
+      if(((this->UWBRxInfo.dist - VTKInfo.VTKDist) > 1000) &&\
+       (VTKInfo.VTKDist != 0) && (VTK_LOST_LEADER != VTKInfo.VTKDist) &&\
+       this->itNeedComparisonFlag)//diff error
+    {
+        if(++this->invalidTargetCnt >= 2)// && (!this->CartWantToPNGState))
+        {
+            this->invalidTargetCnt = 2;
+            this->CartWantToPNGState = true;//want to pause state
+            qDebug()<<"invalid target to Pause"<<VTKInfo.VTKDist<<this->UWBRxInfo.dist;
+        }
+    }
+    else
+    {
+        this->invalidTargetCnt = 0;
+    }
+#endif
+    //qDebug()<<this->VTKInfo.VTKDist<<VTKInfo.VTKDist<<this->UWBRxInfo.dist;
 #else
     this->VTKInfo.VTKDist = VTKInfo.VTKDist;
     this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;

@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.14.00.U200@20210122
+TARGET = ftrCartCtl_V0.0.15.00.U200@20210224
 #TARGET = ftrCartCtl_V0.0.13.01.U200BLE@20210111
 
 # The following define makes your compiler emit warnings if you use

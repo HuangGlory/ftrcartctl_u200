@@ -131,6 +131,8 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     ByteArray[25]=(this->VTPInfo.ToStationDist>>8) & 0xFF;
     ByteArray[26]=this->VTPInfo.ToStationDist & 0xFF;
 
+    //qDebug()<<"RTX:"<<this->VTPInfo.MaxSpeed;
+
     if(this->stationInfoUpdateFlag)
     {
         this->stationInfoUpdateFlag = false;
@@ -157,8 +159,6 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
     }
 
     ByteArray[29]=this->App_XOR(ByteArray);
-
-//    qDebug()<<"RTX:"<<this->VTPInfo.StationName<<this->VTPInfo.setAction;
 
 #elif(SERIAL_TYPE == SERIAL_TYPE_TTL)
     ByteArray[0]=SOP_TTL;
@@ -219,4 +219,5 @@ void FTR_CTR3SpeedCtl::VTP_InitParameter()
 
     this->CartModeEnterParameter.actionEndTape                 = this->SettingParameterFromJson.actionEndTape;//DEFAULT_ACTION;
     this->VTP_UpdateAction(this->SettingParameterFromJson.actionOnMark);
+    qDebug()<<"VTPParInit:";
 }

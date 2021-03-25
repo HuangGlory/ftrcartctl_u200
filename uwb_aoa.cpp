@@ -31,7 +31,7 @@ UWB_AOA::UWB_AOA()
     this->AppUART->setPortName(this->UartName);
     if(this->AppUART->open(QIODevice::ReadWrite))
     {
-        printf("Uart Open Ok!");
+        printf("UWB Uart Open Ok!");
         this->AppUART->reset();
         this->AppUART->setBaudRate(QSerialPort::Baud115200);
         this->AppUART->setParity(QSerialPort::NoParity);
@@ -232,7 +232,7 @@ void UWB_AOA::AnalysisDealSlot(QByteArray data)
             UWBInfo.anchor_status = RxReport->anchor_status;
             UWBInfo.quality = RxReport->quality;
             this->UpdateInfoSignal(UWBInfo);
-//            qDebug()<<UWBInfo.dist<<UWBInfo.angle;
+            //qDebug()<<UWBInfo.dist<<UWBInfo.angle;
             break;
         }
 

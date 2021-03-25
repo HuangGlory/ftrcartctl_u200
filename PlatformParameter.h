@@ -16,8 +16,13 @@
 #define ROUNT_SIMULATOR                 (0)
 #define CREATE_UPDATEALLAPP_SCRIPT_USED (1)
 #define USED_DEFAULT_UTURN_OA_DISABLE   (1)
-#define UWB_USED                        (1)
+#define UWB_USED                        (0)
+#define UWB_TEST_USED                   (0)
 #define GET_SSID_USED                   (1)
+#define FRP_SERVER_ALWAYS_ON            (0)
+#define COMPARSION_REALTIME             (1)
+#define AUTO_DETECT_FRP                 (1)
+#define VTK_UWB_DIST_USED               (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -44,8 +49,10 @@
     #define ENCODER_CNT             (quint16)(3520)
     #define TAPE_ANGLE_LOST_VALUE 	(int8_t)(127)
 
-    #define START_TO_SPEED_UP_DIST			(uint16_t)(1500)	//un:mm 1500
-    #define START_TO_SPEED_DOWN_DIST 		(uint16_t)(2500) 	//un:mm 2000
+    #define START_TO_SPEED_UP_DIST              (uint16_t)(1500)	//un:mm 1500
+    #define START_TO_SPEED_UP_DIST_1            (uint16_t)(800)	//un:mm 1500
+    #define START_TO_SPEED_DOWN_DIST     		(uint16_t)(2500) 	//un:mm 2000
+    #define START_TO_SPEED_DOWN_DIST_AT_HS 		(uint16_t)(4000) 	//un:mm 2000
 
     #define VTK_LOST_LEADER         (65535)
 
@@ -656,6 +663,7 @@ typedef struct _VTPInfo_t
     SpeedCtl_e SpeedCtl;
     ActionOnCrossType_e setAction;
     bool     ToPushFlag;
+    bool     FirstIntoVTPFlag;
 }VTPInfo_t;
 
 typedef struct _VTKInfo_t
