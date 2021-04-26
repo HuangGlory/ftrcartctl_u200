@@ -412,8 +412,8 @@ void CartStateSetting::LoopTimerSlot()
 
 void CartStateSetting::SetCartStateExternal(CartState_e state)
 {
-    //qDebug()<<"SCStateE:"<<this->PreCartState<<this->CurrentCartState;
-    printf("SCStateE:%d,%d\n",this->PreCartState,this->CurrentCartState);
+    qDebug()<<"SCStateE:"<<this->PreCartState<<this->CurrentCartState;
+    //printf("SCStateE:%d,%d\n",this->PreCartState,this->CurrentCartState);
     if(state != this->PreCartState)
     {
         this->CurrentCartState = (this->PreCartState == STATE_SB)?(state):(STATE_SB);

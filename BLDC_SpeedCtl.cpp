@@ -28,6 +28,7 @@ void FTR_CTR3SpeedCtl::TxToBLDC_RTData(int16_t speed_l,int16_t speed_r,uint8_t C
 {
     QByteArray BLDCTxBuffer;
 #if(SERIAL_BYPASS)
+    //BLDCTxBuffer.resize(5);
     BLDCTxBuffer[0] = SOP;
     BLDCTxBuffer[1] = 0xEF;
     BLDCTxBuffer[2] = 0x00;

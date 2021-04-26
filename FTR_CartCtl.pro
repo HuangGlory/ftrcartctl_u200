@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 #TARGET = ftrCartCtl_V0.0.4.00.R3@20200907
-TARGET = ftrCartCtl_V0.0.15.00.U200@20210224
+TARGET = ftrCartCtl_V0.0.19.00.U200@20210428
 #TARGET = ftrCartCtl_V0.0.13.01.U200BLE@20210111
 
 # The following define makes your compiler emit warnings if you use
@@ -42,6 +42,8 @@ SOURCES += \
     readvtppipe_thread.cpp \
     sb_thread.cpp \
     stationattribute.cpp \
+    tcp_server.cpp \
+    tcp_server_private.cpp \
     uwb_aoa.cpp \
     vtk_thread.cpp
 
@@ -69,6 +71,8 @@ HEADERS += \
     sb_thread.h \
     stationattribute.h \
     streamlitApp.h \
+    tcp_server.h \
+    tcp_server_private.h \
     updateScript.h \
     uwb_aoa.h \
     vtk_thread.h \

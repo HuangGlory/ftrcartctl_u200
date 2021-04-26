@@ -16,6 +16,8 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
 
     QByteArray  ByteArray;    
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+//    ByteArray.resize(15);
+
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_VTK_INFO;
     ByteArray[2]=0x00;
@@ -62,7 +64,7 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
 #endif
 
     ByteArray[14]=this->App_XOR(ByteArray);
-    //qDebug()<<this->VTKInfo.VTKDist<<this->VTKInfo.VTKAngle;
+//    qDebug()<<this->VTKInfo.VTKDist<<this->VTKInfo.VTKAngle;
 #elif(SERIAL_TYPE == SERIAL_TYPE_TTL)
     ByteArray[0]=SOP_TTL;
     ByteArray[1]=cmd;
@@ -82,6 +84,7 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
     ByteArray[12]=(CRC>>8)& 0xFF;
     ByteArray[13]=CRC & 0xFF;
 #endif
+//    qDebug()<<ByteArray.toHex();
     this->AppUART->write(ByteArray);
     this->AppUART->flush();
     QThread::msleep(5);

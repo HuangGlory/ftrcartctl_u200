@@ -8,7 +8,7 @@ ReadVTKPipe_Thread::ReadVTKPipe_Thread()
 ReadVTKPipe_Thread::ReadVTKPipe_Thread(QString pipeFileName)
 {
     this->pipeFileName = pipeFileName;
-    qDebug()<<pipeFileName;
+    qDebug()<<"ReadVTKPipe_Thread:"<<pipeFileName;
 }
 
 void ReadVTKPipe_Thread::run()
@@ -26,8 +26,14 @@ void ReadVTKPipe_Thread::run()
         }
         else
         {
-            qDebug()<<"Open File faile";
+            qDebug()<<this->pipeFile->fileName()<<"Open File faile";
+            this->stop();
         }
+    }
+    else
+    {
+        qDebug()<<"Read VTK Pipe:"<<this->pipeFileName<<pipeFile->exists()<<pipeFile->isOpen();
+        this->stop();
     }
 
     while(this->isRunable)
@@ -35,6 +41,7 @@ void ReadVTKPipe_Thread::run()
         //if(this->pipeFile->canReadLine())
         //qDebug()<<"Size:"<<this->pipeFile->size()<<this->pipeFile->waitForReadyRead(200);
         //if(this->pipeFile->size() != 0)
+        if(this->pipeFile->isReadable())
         {
             QString RxInfo = this->pipeFile->readLine();
             //RxInfo = RxInfo.replace("\n","");

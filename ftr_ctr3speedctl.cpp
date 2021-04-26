@@ -1,5 +1,8 @@
 #include "ftr_ctr3speedctl.h"
 #include <QThread>
+//#include <QHostInfo>
+#include <QNetworkInterface>
+#include <QFileInfo>
 
 class FTR_CTR3SpeedCtlData : public QSharedData
 {
@@ -20,6 +23,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(UWB_USED)
     qRegisterMetaType<UWBInfo_t>("UWBInfo_t");
 #endif
+
+    this->NeedInfoFromOutputPipeFlag = false;
 
     this->VTKInfo.ToPushFlag = false;
     this->VTPInfo.ToPushFlag = false;
@@ -117,8 +122,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 
     this->MainInputPipeFile         = new QFile(this->MainInputPipeName);
     this->StateInfoInputPipeFile    = new QFile(FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME);
-    this->VTKOutputPipeFile         = new QFile(this->VTKOutputPipeName);
-    this->VTPOutputPipeFile         = new QFile(this->VTPOutputPipeName);
+    //this->VTKOutputPipeFile         = new QFile(this->VTKOutputPipeName);//QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME)
+    //this->VTPOutputPipeFile         = new QFile(this->VTPOutputPipeName);//QFile(VTP_OUTPUT_DEFAULT_PIPE_NAME)
 
     /*************ftrCartCtl pipe************************************/
     this->ftrCartCtlInputPipeName   = FTRCARTCTL_IN_PIPE_NAME;
@@ -128,12 +133,37 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     /****************************************************************/
 
     this->ReadVTKPipeProcess        = new ReadVTKPipe_Thread(this->VTKOutputPipeName);
+    if(this->ReadVTKPipeProcess->pipeFileName.isEmpty())
+    {
+        this->ReadVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
+        qDebug()<<"Reset ReadVTKPipeProcess:";
+    }
     this->ClearVTKPipeProcess       = new ClearPipe_Thread(this->VTKOutputPipeName);
+    if(this->ClearVTKPipeProcess->pipeFileName.isEmpty())
+    {
+        this->ClearVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
+        qDebug()<<"Reset ClearVTKPipeProcess:";
+    }
 
     this->ReadVTPPipeProcess        = new ReadVTPPipe_Thread(this->VTPOutputPipeName);
+    if(this->ReadVTPPipeProcess->pipeFileName.isEmpty())
+    {
+        this->ReadVTPPipeProcess->SetPipeFileName(VTP_OUTPUT_DEFAULT_PIPE_NAME);
+        qDebug()<<"Reset ReadVTPPipeProcess:";
+    }
     this->ClearVTPPipeProcess       = new ClearPipe_Thread(this->VTPOutputPipeName);
+    if(this->ClearVTPPipeProcess->pipeFileName.isEmpty())
+    {
+        this->ClearVTPPipeProcess->SetPipeFileName(VTP_OUTPUT_DEFAULT_PIPE_NAME);
+        qDebug()<<"Reset ClearVTPPipeProcess:";
+    }
 
     this->ReadInputPipeProcess      = new ReadInputPipe_Thread(this->ftrCartCtlInputPipeName);
+    if(this->ReadInputPipeProcess->pipeFileName.isEmpty())
+    {
+        this->ReadInputPipeProcess->SetPipeFileName(FTRCARTCTL_IN_PIPE_NAME);
+        qDebug()<<"Reset ReadInputPipeProcess:";
+    }
 
     this->theMinR                   = 1000;
     this->ArcInfo.ArcLocation       = NULL_LOCALTION;
@@ -156,20 +186,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->autoDetectFRP();
 #endif
 
-#if(GET_SSID_USED)
-    this->updatefrpcFile();
-    this->frpServerProcess = new QProcess;
-    this->GetSSIDProcess = new QProcess;
-    this->frpServerProcessID = 0;
-    this->currentSSID = "";
-    connect(this->GetSSIDProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_GetSSIDReadOutputSlot()));
-    connect(this->frpServerProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_frpServerReadOutputSlot()));
-#endif
-
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
-    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && this->VTKOutputPipeFile->exists() && this->VTPOutputPipeFile->exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
+    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
     qDebug()<<"Pipe file ready";
 #endif
 
@@ -180,10 +200,65 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->lostTargetCnt = 0;
     this->itNeedComparisonFlag = false;
 #endif
-    this->tcpSocket                 = new QTcpSocket(this);
+
+#if(GET_SSID_USED)
+    this->updatefrpcFile();
+    this->frpServerProcess = new QProcess;
+    this->GetSSIDProcess = new QProcess;
+    this->frpServerProcessID = 0;
+    this->currentSSID = "";
+    this->currentIPAddr="";
+    connect(this->GetSSIDProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_GetSSIDReadOutputSlot()));
+    connect(this->frpServerProcess,SIGNAL(readyReadStandardOutput()) ,this, SLOT(on_frpServerReadOutputSlot()));
+
+    this->get_ip_addr();
+    this->getCartModel();
+    this->getHostName();
+#endif
+
+#if(MULTIC_TCP_SUPPORT)
+    this->SocketReadyFlag           = false;
+    this->RemoteSocketReadyFlag     = false;
+    this->tcpSocketHandle           = 0;
+    this->RemoteTcpSocketHandle     = 0;
+
+    this->tcpSocket                 = nullptr;
+    this->RemoteTcpSocket           = nullptr;
+    this->tcp_server_               = new TcpServer(this);
+    if(!this->tcp_server_->listen(QHostAddress::Any,50006))
+    {
+        qDebug()<<"tcp Err:"<<this->tcp_server_->errorString();
+    }
+    this->tcp_server_->setMaxPendingConnections(1);//2
+#else
+//    this->tcpSocket               = new QTcpSocket(this);
     this->tcpServer                 = new QTcpServer(this);
     this->tcpServer->listen(QHostAddress::Any,50006);//smart phone
-    this->tcpServer->setMaxPendingConnections(2);
+    this->tcpServer->setMaxPendingConnections(3);//2
+#endif
+
+#if(UDP_USED)
+    this->udpSocket                 = new QUdpSocket(this);
+    this->udpSocket->bind(LOCAL_PORT,QUdpSocket::ShareAddress);
+#endif
+
+    if(this->MainInputPipeFile->fileName().isEmpty())
+    {
+        this->MainInputPipeFile->setFileName(MAIN_INPUT_DEFAULT_PIPE_NAME);
+        qDebug()<<"Reset MainInputPipeFile:"<<MAIN_INPUT_DEFAULT_PIPE_NAME;
+    }
+
+    if(this->StateInfoInputPipeFile->fileName().isEmpty())
+    {
+        this->StateInfoInputPipeFile->setFileName(FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME);
+        qDebug()<<"Reset StateInfoInputPipeFile:"<<FTRCARTCTL_INFO_OUT_TO_VISON_PIPE_NAME;
+    }
+
+    if(this->ftrCartCtlOutputPipeFile->fileName().isEmpty())
+    {
+        this->ftrCartCtlOutputPipeFile->setFileName(FTRCARTCTL_OUT_PIPE_NAME);
+        qDebug()<<"Reset ftrCartCtlOutputPipeFile:"<<FTRCARTCTL_OUT_PIPE_NAME;
+    }
 
     this->OpenPipe(this->MainInputPipeFile,QIODevice::WriteOnly);
     this->OpenPipe(this->StateInfoInputPipeFile,QIODevice::WriteOnly);
@@ -227,6 +302,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
         uint currentDateTime = QDateTime::currentDateTime().toTime_t();
         foreach(QString fileStr, files)
         {
+            fileStr.replace(".log","");
             time = QDateTime::fromString(fileStr,"yyyyMMdd-HH-mm-ss");
             uint detTime = currentDateTime - time.toTime_t();//un:second
             if(detTime >= 432000)//5*24*60*60 aboue 5 days
@@ -402,7 +478,13 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     //this->VTKProcess->stop();
 
     connect(this,SIGNAL(toCalcCapacitySignal(double)),this,SLOT(calcCapacitySlot(double)));
+#if(MULTIC_TCP_SUPPORT)
+    connect(this->tcp_server_,&TcpServer::ClientConnected,this,&FTR_CTR3SpeedCtl::ClientConnected);
+    connect(this->tcp_server_,&TcpServer::ClientDisconnected,this,&FTR_CTR3SpeedCtl::ClientDisconnected);//监听
+    connect(this, &FTR_CTR3SpeedCtl::ServerRecved, this, &FTR_CTR3SpeedCtl::ServerRecvedSlot);
+#else
     connect(this->tcpServer,SIGNAL(newConnection()),this,SLOT(tcpServerConnectionSlot()));
+#endif
 
 #if(CREATE_MAP_USED)
     QFile *file = new QFile(MAP_FILE_NAME);
@@ -476,6 +558,36 @@ void FTR_CTR3SpeedCtl::autoDetectFRP(void)
 }
 #endif
 
+#if(RT_LOG_MAINTAIN_USED)
+quint32 FTR_CTR3SpeedCtl::CheckRTLogSize()
+{
+    QString getSizeCmd = "du -sh "+ QString(LOG_FILE_NAME);
+    //QProcess用于启动外部程序
+    QProcess process;
+
+    process.start(getSizeCmd);
+
+    //等待命令执行结束
+    process.waitForFinished();
+
+    //获取命令执行的结果
+    QByteArray result_ = process.readAllStandardOutput();
+    result_.replace(LOG_FILE_NAME,"").replace("K\t\n","");
+    quint32 rtlogSize = result_.toDouble()*1024;
+    if(LOG_MAX_SIZE < rtlogSize)
+    {
+        QString rmLogFileCmd = "sudo rm -rf "+QString(LOG_FILE_NAME);
+        process.start(rmLogFileCmd);
+        //等待命令执行结束
+        process.waitForFinished();
+
+        qDebug()<<"Log File Too Large to del:"<<rmLogFileCmd;
+    }
+    qDebug()<<rtlogSize;
+    return rtlogSize;
+}
+#endif
+
 #if(UWB_USED)
 void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
 {    
@@ -516,7 +628,10 @@ void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
 void FTR_CTR3SpeedCtl::on_readoutputSlot()
 {
 //    this->ExternURLStr.append(this->streamlitProcess->readAllStandardOutput());
-    qDebug()<<this->streamlitProcess->readAllStandardOutput().data();   //将输出信息读取到编辑框
+    QString str = this->streamlitProcess->readAllStandardOutput().data();   //将输出信息读取到编辑框
+    QStringList strList = str.split("\n");
+    //qDebug()<<strList.length()<<strList.at(strList.length() - 1);
+
 }
 
 void FTR_CTR3SpeedCtl::CreateStreamlitAppSlot(void)
@@ -545,20 +660,27 @@ void FTR_CTR3SpeedCtl::CreateStreamlitAppSlot(void)
 void FTR_CTR3SpeedCtl::StartStreamlitUISlot(void)
 {
 //    if(!this->streamlitProcess->isOpen() || (0 ==this->streamlitAppPID))
-    if(0 ==this->streamlitAppPID)
+    if(!this->currentIPAddr.isEmpty())//not wifi be connected
     {
-//        this->streamlitProcess->startDetached("/home/pi/ftrCartCtl/streamlitApp run /home/pi/ftrCartCtl/ui.py");
-        this->streamlitProcess->setProgram("/home/pi/ftrCartCtl/streamlitApp");
-        this->streamlitProcess->setArguments({"run","/home/pi/ftrCartCtl/ui.py"});
-        this->streamlitProcess->setWorkingDirectory("/home/pi/ftrCartCtl/");
-        this->streamlitProcess->startDetached(&this->streamlitAppPID);
+        if(0 ==this->streamlitAppPID)
+        {
+    //        this->streamlitProcess->startDetached("/home/pi/ftrCartCtl/streamlitApp run /home/pi/ftrCartCtl/ui.py");
+            this->streamlitProcess->setProgram("/home/pi/ftrCartCtl/streamlitApp");
+            this->streamlitProcess->setArguments({"run","/home/pi/ftrCartCtl/ui.py"});
+            this->streamlitProcess->setWorkingDirectory("/home/pi/ftrCartCtl/");
+            this->streamlitProcess->startDetached(&this->streamlitAppPID);
 
-        this->streamlitProcess->waitForStarted();
-        qDebug()<<"UI Start..."<<this->streamlitAppPID;
+            this->streamlitProcess->waitForStarted();
+            qDebug()<<"UI Start..."<<this->streamlitAppPID;
+        }
+        else
+        {
+            qDebug()<<"UI Has Started:";
+        }
     }
     else
     {
-        qDebug()<<"UI Has Started:";
+        qDebug()<<"not wifi to start UI:";
     }
 }
 void FTR_CTR3SpeedCtl::StopStreamlitUISlot(void)
@@ -566,7 +688,7 @@ void FTR_CTR3SpeedCtl::StopStreamlitUISlot(void)
 //    QString strCommand = "sudo kill $(ps -ef|grep streamlitApp |grep -v grep |awk '{print $2}')";
 
 //    if(this->streamlitProcess->isOpen() || this->streamlitAppPID)
-    if( this->streamlitAppPID)
+    if(this->streamlitAppPID)
     {
         QProcess::startDetached("kill",{QString::number(this->streamlitAppPID)});
 
@@ -582,16 +704,74 @@ void FTR_CTR3SpeedCtl::StopStreamlitUISlot(void)
 #endif
 
 #if(GET_SSID_USED)
+void FTR_CTR3SpeedCtl::get_ip_addr(void)
+{
+    QList<QHostAddress> list = QNetworkInterface::allAddresses();
+    foreach (QHostAddress address, list)
+    {
+        if((address.protocol() == QAbstractSocket::IPv4Protocol) && address.toString().contains("192."))
+        {
+            this->currentIPAddr = address.toString();
+            qDebug()<<"IP:"<<this->currentIPAddr;
+        }
+    }
+}
+void FTR_CTR3SpeedCtl::getCartModel(void)
+{
+    //QProcess用于启动外部程序
+    QProcess process;
+
+    process.start("cat /home/pi/CART_MODEL");
+
+    //等待命令执行结束
+    process.waitForFinished();
+
+    //获取命令执行的结果
+    QByteArray result_ = process.readAllStandardOutput();
+
+    //打印结果
+    this->CartModel = result_;
+    this->CartModel.replace("\n","");
+
+    qDebug()<<"CartModel:"<<this->CartModel;
+}
+
+void FTR_CTR3SpeedCtl::getHostName(void)
+{
+    //QProcess用于启动外部程序
+    QProcess process;
+
+    process.start("hostname");
+
+    //等待命令执行结束
+    process.waitForFinished();
+
+    //获取命令执行的结果
+    QByteArray result_ = process.readAllStandardOutput();
+
+    //打印结果
+    this->HostName = result_;
+    this->HostName.replace("\n","");
+
+    qDebug()<<"HostName:"<<this->HostName;
+}
 void FTR_CTR3SpeedCtl::on_GetSSIDReadOutputSlot(void)
 {
     QString str = this->GetSSIDProcess->readAllStandardOutput().replace("\"","").replace("\n","").data();   //将输出信息读取到编辑框
     this->currentSSID = str.split(":").at(1);
-//    qDebug()<<this->currentSSID;
+    this->GetSSIDProcess->kill();
+    //qDebug()<<this->currentSSID;
+    qDebug()<<str;
 }
 void FTR_CTR3SpeedCtl::getSSIDScript(void)
 {
-    QString cmd = "sudo iwgetid\n";
-    this->GetSSIDProcess->start(cmd);
+//    //QString cmd = "sudo iwgetid\n";
+//    QString cmd ="ifconfig wlan0 |awk '/inet 192/ {print $2};'";
+//    this->GetSSIDProcess->start("./get_ip.sh");
+
+
+
+
 }
 
 void FTR_CTR3SpeedCtl::on_frpServerReadOutputSlot(void)
@@ -1067,6 +1247,15 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                 this->VTPInfo.SpeedCtl          = SPEED_CTL_NULL;
                 this->SpeedUpAndDownState       = false;
                 this->startToCatchCrossFlag     = false;
+                this->VTPInfo.itNeedToSpeedUpFromVisionFlag = false;
+
+                //reset pipe name
+                if(this->ClearVTKPipeProcess->pipeFileName.isEmpty()) this->ClearVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
+                if(this->ClearVTPPipeProcess->pipeFileName.isEmpty()) this->ClearVTPPipeProcess->SetPipeFileName(VTP_OUTPUT_DEFAULT_PIPE_NAME);
+                if(this->ReadVTKPipeProcess->pipeFileName.isEmpty())  this->ReadVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
+                if(this->ReadVTPPipeProcess->pipeFileName.isEmpty())  this->ReadVTPPipeProcess->SetPipeFileName(VTP_OUTPUT_DEFAULT_PIPE_NAME);
+                if(this->ReadInputPipeProcess->pipeFileName.isEmpty()) this->ReadInputPipeProcess->SetPipeFileName(FTRCARTCTL_IN_PIPE_NAME);
+
 
                 if(!this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->start();
                 if(!this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->start();
@@ -1131,7 +1320,7 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     printf("LowPowerToSB:\n");
                 }
 
-                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
+                //if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
             }
             break;
 
@@ -1177,9 +1366,12 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     this->itNeedComparisonFlag = true;
                     connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
                 #endif
+
+                    if(this->ReadVTKPipeProcess->pipeFileName.isEmpty())  this->ReadVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
                 }
-                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
+                //if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTKPipeProcess->isRunning()) this->ClearVTKPipeProcess->stop();
+
                 if(!this->ReadVTKPipeProcess->isRunning() && !this->ClearVTKPipeProcess->isRunning()) this->ReadVTKPipeProcess->start();//fix sometimes change mode to VTK too fast,the thread not created
 
                 if(this->batCapacityInfo.lessThan10Flag)
@@ -1241,9 +1433,13 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 
                     this->VTPInfo.ToPushFlag    = false;
                     this->VTPInfo.FirstIntoVTPFlag = true;
+                    this->VTPInfo.itNeedToSpeedUpFromVisionFlag = false;
+
+                    if(this->ReadVTPPipeProcess->pipeFileName.isEmpty())  this->ReadVTPPipeProcess->SetPipeFileName(VTP_OUTPUT_DEFAULT_PIPE_NAME);
                 }
-                if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
+                //if(this->ReadInputPipeProcess->isRunning()) this->ReadInputPipeProcess->stop();
                 if(this->ClearVTPPipeProcess->isRunning()) this->ClearVTPPipeProcess->stop();
+
                 if(!this->ReadVTPPipeProcess->isRunning() && !this->ClearVTPPipeProcess->isRunning()) this->ReadVTPPipeProcess->start();
 
                 if(this->batCapacityInfo.lessThan10Flag)
@@ -1309,12 +1505,12 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
 //                    qDebug()<<this->VTPInfo.MaxSpeed<<startToSpeedDownDist;
                 }
 
-                if((((!this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST_1)) || ((this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST))) &&\
-                  (startToSpeedDownDist < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist))
+                if(((((!this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST_1)) || ((this->VTPInfo.FirstIntoVTPFlag) && (walkDist > START_TO_SPEED_UP_DIST))) &&\
+                  (startToSpeedDownDist < this->RemainDistToCross) && (0 != this->VTPInfo.ToStationDist)) || (this->VTPInfo.itNeedToSpeedUpFromVisionFlag))
                 {
                     this->VTPInfo.FirstIntoVTPFlag = false;
                     this->VTPInfo.SpeedCtl = SPEED_CTL_UP;
-                    qDebug()<<"SU:"<<walkDist;
+                    //qDebug()<<"SU:"<<walkDist;
                 }
                 else
                 {
@@ -1440,6 +1636,7 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         if((tickCntPerSecond % 2) == 0)
         {
             if(this->Wait4CameraReadyIndecateFlag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_1);
+
         #if(GET_SSID_USED)
         #if(FRP_SERVER_ALWAYS_ON)
             if(1)
@@ -1454,7 +1651,14 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
             {
                 if(this->frpServerProcessID != 0) this->killFRPServer();
             }
-
+            if(this->currentIPAddr.isEmpty()) this->get_ip_addr();
+        #endif
+       #if(UDP_USED)
+            if((!this->RemoteSocketReadyFlag) && (!this->currentIPAddr.isEmpty())) //udp broadcast cart info
+            {
+                this->updSendMessage(this->currentIPAddr+"：50006,"+this->HostName+"\n");
+                //qDebug()<<"UDPTX:";
+            }
         #endif
         }
 
@@ -1533,6 +1737,12 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         }
         //qDebug()<<"ComparsionS："<<this->itNeedComparisonFlag;
     #endif
+    #if(RT_LOG_MAINTAIN_USED)
+        if((tickCntPerSecond % 60) == 0)
+        {
+            this->CheckRTLogSize();
+        }
+    #endif
     }
 }
 
@@ -1573,8 +1783,18 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 if(this->SocketReadyFlag && this->itNeedSendInfoToPhoneFlag)
                 {
                     //this->itNeedSendInfoToPhoneFlag = false;
-                    this->tcpSocketSendMessageSlot(tr("Info:")+RxInfo+","+QString::number(quint8(this->batCapacityInfo.ratio+0.5))+tr("\n"));
+                    this->tcpSocketSendMessageSlot(tr("Info:")+RxInfo+","+QString::number(quint8(this->batCapacityInfo.ratio+0.5))+tr("\n"));                    
                     //qDebug()<<this->batCapacityInfo.ratio;
+                }
+                if(this->RemoteSocketReadyFlag)
+                {
+                    this->tcpSocketSendMessageToDeviceSlot(tr("Info:")+CartModel+","+HostName+"," +currentIPAddr+","+RxInfo+","+QString::number(quint8(this->batCapacityInfo.ratio+0.5))+tr("\n"));
+                }
+
+                if(this->NeedInfoFromOutputPipeFlag)
+                {
+                    this->NeedInfoFromOutputPipeFlag = false;
+                    this->WriteOutPipeSlot(tr("Info:")+CartModel+","+HostName+"," +currentIPAddr+","+RxInfo+","+QString::number(quint8(this->batCapacityInfo.ratio+0.5))+tr(":EndInfo\n"));
                 }
 
                 bool convertResult = false;
@@ -1915,6 +2135,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                         file.write(verStr.toLocal8Bit().data());
                         file.flush();
                         file.close();
+                        this->AllVersionStr = verStr;
                         //qDebug()<<"write ver:"<<verStr;
                         this->EboxVersionStr.clear();
                     }
@@ -1942,6 +2163,8 @@ void    FTR_CTR3SpeedCtl::SendCMD(UserCmd cmd,quint8 data1,quint8 data2,quint8 d
     //qDebug("CMD:%x",cmd);
     QByteArray  ByteArray;
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+    //ByteArray.resize(8);
+
     ByteArray[0]=SOP_USB;
     ByteArray[1]=cmd;
     ByteArray[2]=0x00;
@@ -2553,7 +2776,415 @@ void FTR_CTR3SpeedCtl::BTRCCmdSlot(RCCMD_e cmd)
     }
 }
 #endif
+#if(UDP_USED)
+void FTR_CTR3SpeedCtl::updSendMessage(QString message)
+{
+    QByteArray data;
+//    QDataStream out(&data,QIODevice::WriteOnly);//将二进制数据存入到io设备
+//    out<<message;
 
+    quint16 len = this->udpSocket->writeDatagram(message.toUtf8(),QHostAddress::Broadcast,DEST_PORT);
+//    qDebug()<<message<<len;
+}
+#endif
+
+#if(MULTIC_TCP_SUPPORT)
+void FTR_CTR3SpeedCtl::ClientConnected(qintptr handle, QTcpSocket* socket)
+{
+    qDebug()<<socket->peerAddress().toString()<<socket->peerPort();
+    if(socket->peerAddress().toString().contains("127.0.0.1"))//from local AppServer
+    {
+        this->SocketReadyFlag = true;
+        this->tcpSocket = socket;
+        this->tcpSocketHandle = handle;
+    }
+    else
+    {
+        this->RemoteSocketReadyFlag = true;
+        this->RemoteTcpSocket = socket;
+        this->RemoteTcpSocketHandle = handle;
+        socket->write(this->AllVersionStr.toLatin1());
+        //this->tcpSocketSendMessageToDeviceSlot(this->AllVersionStr);//report version
+    }
+    connect(socket, &QTcpSocket::readyRead,[=]() {
+        emit ServerRecved(handle, socket, socket->readAll());
+    });
+}
+
+void FTR_CTR3SpeedCtl::tcpSocketSendMessageSlot(QString message)
+{
+    QString CurrentTimeStr = QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
+
+    message.replace("\n","");
+    QStringList messageList = message.split(":");
+
+    if(messageList.size()>=1)
+    {
+        QString value = "0";
+        if(messageList.size() == 2) value = messageList.at(1);
+        QString toSendMessage = QString("%0$%1$%2$%3$%4$%5\r").arg(0).arg(0).arg(CurrentTimeStr).arg(0).arg(messageList.at(0)).arg(value);
+        if(this->tcpSocket != nullptr) this->tcpSocket->write(toSendMessage.toLatin1());
+    }
+}
+
+void FTR_CTR3SpeedCtl::tcpSocketSendMessageToDeviceSlot(QString message)
+{
+    QString CurrentTimeStr = QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
+
+    message.replace("\n","");
+    QStringList messageList = message.split(":");
+
+    if(messageList.size()>=1)
+    {
+        QString value = "0";
+        if(messageList.size() == 2) value = messageList.at(1);
+        QString toSendMessage = QString("%0$%1$%2$%3$%4$%5\r").arg(0).arg(0).arg(CurrentTimeStr).arg(0).arg(messageList.at(0)).arg(value);
+        if(this->RemoteTcpSocket != nullptr) this->RemoteTcpSocket->write(toSendMessage.toLatin1());
+
+    }
+}
+
+void FTR_CTR3SpeedCtl::ClientDisconnected(qintptr handle)
+{
+//    QTcpSocket* pQTcpSocket = static_cast<QTcpSocket*>(sender());
+//    qDebug()<<"receive disconnect!"<<pQTcpSocket->peerAddress();
+//    pQTcpSocket->deleteLater();
+
+    qDebug()<<handle<<"Socket Disconnected";
+    if(handle == this->tcpSocketHandle)
+    {
+        this->tcpSocketHandle   = 0;
+        this->SocketReadyFlag   = false;
+        this->tcpSocket         = nullptr;
+    }
+    else if(handle == this->RemoteTcpSocketHandle)
+    {
+        this->RemoteTcpSocketHandle = 0;
+        this->RemoteSocketReadyFlag = false;
+        this->RemoteTcpSocket = nullptr;
+    }
+}
+
+void FTR_CTR3SpeedCtl::ServerRecvedSlot(qintptr handle,QTcpSocket *socket,const QByteArray &data)
+{
+    Q_UNUSED(handle);
+//    qDebug()<<socket->peerAddress().toString()<<socket->peerPort()<<data;
+//    QString send_data = QString("%1 %2 %3").
+//            arg(socket->peerAddress().toString()).
+//            arg(socket->peerPort()).
+//            arg(QString(data));
+    if(socket->peerAddress().toString().contains("127.0.0.1"))//from local AppServer
+    {
+        tcpSocketReadSlot(QString(data));
+    }
+    else
+    {
+        qDebug()<<"fromDevice:"<<(QString(data));
+    }
+//    socket->write(send_data.toLatin1());
+}
+
+void FTR_CTR3SpeedCtl::tcpSocketReadSlot(QString rxData)
+{
+    //if(this->tcpSocket->canReadLine())
+    {
+        //QTcpSocket *socket = ((QTcpSocket*)sender());
+        //qDebug()<<socket->peerAddress().toString()<<socket->peerPort();
+
+        QString RxMessage = rxData;//socket->readAll();
+        //qDebug()<<RxMessage;
+
+        if(RxMessage.startsWith("ModeChange:",Qt::CaseInsensitive))
+        {
+            RxMessage = RxMessage.replace("ModeChange:","");
+            RxMessage = RxMessage.replace("\n","");
+
+            bool convertResult = false;
+            int CartState = RxMessage.toUInt(&convertResult);
+            if(convertResult) this->CartStateCtlProcess->SetCartStateExternal((CartState_e)(CartState));
+            qDebug()<<"ModeChange from Phone:"<<CartState;
+        }
+        else if(RxMessage.startsWith("Pause&Go:",Qt::CaseInsensitive))
+        {
+            if(this->CartState != STATE_SB)
+            {
+                emit this->CartStateCtlProcess->PNGButtonToggleSignal();
+                qDebug()<<"Trig P&G from Phone:";
+            }
+        }
+    #if(0)
+        else if(RxMessage.startsWith("RC:",Qt::CaseInsensitive))
+        {
+            RxMessage = RxMessage.replace("RC:","");
+            RxMessage = RxMessage.replace("\n","");
+            //RxMessage ="6b9e0003000000f6";
+            /******
+             * RC:Enter"6bf600030090000e"
+             * RC:Left: "6b93000302810078"
+             * RC:Right:"6b9300030282007b"
+             * RC:Up:   "6b9300030283007a"
+             * RC:Down: "6b9300030284007d"
+             * RC:STOP: "6b930003028B0072"
+             * RC:NULL: "6b930003020000f9"
+             * ********/
+            if(RxMessage.contains("stop",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK,0x02,0x8b);
+            }
+            else if(RxMessage.contains("left",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK,0x02,0x81);
+            }
+            else if(RxMessage.contains("right",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK,0x02,0x82);
+            }
+            else if(RxMessage.contains("up",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK,0x02,0x83);
+            }
+            else if(RxMessage.contains("down",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK,0x02,0x84);
+            }
+            else if(RxMessage.contains("null",Qt::CaseInsensitive))
+            {
+                this->SendCMD(CMD_BLUETOOTH_STATE_SYNC_ACK);
+            }
+            else if(RxMessage.contains("enter",Qt::CaseInsensitive))//enter RC
+            {
+                this->SendCMD(CMD_BLUETOOTH_HEAD,0x00,0x90);
+            }
+            //qDebug()<<RxMessage;
+        }
+    #endif
+        else if(RxMessage.startsWith("Beep:",Qt::CaseInsensitive))
+        {
+            RxMessage = RxMessage.replace("Beep:","");
+            RxMessage = RxMessage.replace("\n","");
+
+            bool convertResult = false;
+            int beepType = RxMessage.toUInt(&convertResult);
+            if(convertResult) this->SendCMD(CMD_BEEP_SOUND,(BeepType_t)(beepType));
+            qDebug()<<"Beep from phone:";
+        }
+        /*else if(RxMessage.startsWith("StateInfo:",Qt::CaseInsensitive))//need rt info
+        {
+            this->itNeedSendInfoToPhoneFlag = true;
+        }*/
+        else if(RxMessage.startsWith("VTPSetAction:",Qt::CaseInsensitive))
+        {
+            qDebug()<<RxMessage;
+            RxMessage = RxMessage.replace("VTPSetAction:","");
+            RxMessage = RxMessage.replace("\n","");
+
+            QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
+            //qDebug()<<RxInfoList;
+
+            if((RxMessageList.size() == 5) || (RxMessageList.size() == 6))//ctybyte,action,stationName,MaxSpeed, PauseTime,dist
+            {
+                bool convertResult = false;
+
+                int  convertValue   = RxMessageList.at(2).toInt(&convertResult);
+                if(convertResult)   this->VTPInfo.StationName = (int8_t)(convertValue);
+            #if(NUM_STATION_USED)
+                if(this->VTPInfo.StationName != -1)
+            #endif
+                {
+                #if(!USED_DEFAULT_PARAMETER_ON_STATION)
+                    convertValue   = RxMessageList.at(0).toInt(&convertResult);
+                    if(convertResult)   this->VTPInfo.CtlByte = (uint8_t)(convertValue);
+                #endif
+                    convertValue   = RxMessageList.at(3).toInt(&convertResult);
+                    if(convertResult)   this->VTPInfo.MaxSpeed = (uint16_t)(convertValue);
+
+                    convertValue   = RxMessageList.at(1).toInt(&convertResult);
+                    if(convertResult)  this->VTP_UpdateAction(ActionOnCrossType_e(convertValue));
+                #if(0)//!NUM_STATION_USED)
+                    //6,5,14
+                    if((ActionOnCrossType_e(convertValue) == ACTION_UTURN_GO) ||
+                        (ActionOnCrossType_e(convertValue) == ACTION_UTURN_STOP) ||
+                        (ActionOnCrossType_e(convertValue) == ACTION_UTURN_PAUSE))
+                    {
+                        this->FaceDirFlag = (this->FaceDirFlag)?(false):(true);
+                    }
+                    qDebug()<<"SetDirBaseAction:"<<convertValue<<this->FaceDirFlag;
+                #endif
+                    convertValue   = RxMessageList.at(4).toInt(&convertResult);
+                    if(convertResult)   this->VTPInfo.PauseTime = (uint16_t)(convertValue);
+
+                    if(RxMessageList.size() == 6)
+                    {
+                        convertValue   = RxMessageList.at(5).toInt(&convertResult);
+                        if(convertResult)   this->VTPInfo.ToStationDist = (uint16_t)(convertValue);
+                    }
+                }
+                if(this->retrySendStationInfoToSocketFlag)
+                {
+                    this->retrySendStationInfoToSocketFlag = false;
+                    this->stationInfoToSocket = "";
+                }
+                this->stationInfoUpdateFlag = true;
+                qDebug()<<"VTPA:"<<this->VTPInfo.CtlByte<<this->VTPInfo.setAction<<this->VTPInfo.StationName<<this->VTPInfo.MaxSpeed<<this->VTPInfo.PauseTime<<this->VTPInfo.ToStationDist;
+            }
+        }
+        else if(RxMessage.startsWith("VersionInfo:"))
+        {
+            QFile file;
+            file.setFileName("/home/pi/ftrCartCtl/version");
+            if(file.open(QIODevice::ReadOnly))
+            {
+                QString versionStr = file.readAll();
+                this->tcpSocketSendMessageSlot(versionStr);
+
+                file.close();
+            }
+        }
+        else if(RxMessage.contains("WheelCali:"))
+        {
+            //WheelCali:1,10000
+            //WheelCali:0,0
+            RxMessage = RxMessage.replace("WheelCali:","");
+            RxMessage = RxMessage.replace("\n","");
+            QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
+
+            if(RxMessageList.size() == 2)
+            {
+                bool convertResult = false;
+                int converValue = RxMessageList.at(0).toInt(&convertResult);
+                if(convertResult)
+                {
+                    if(converValue)//need odo cali
+                    {
+                        this->NeedIntoODOCaliFlag = true;
+                        converValue = RxMessageList.at(1).toInt(&convertResult);
+                        if(convertResult) this->WheelCaliDist = converValue;
+                    }
+                    else
+                    {
+                        converValue = RxMessageList.at(1).toInt(&convertResult);
+                        if(converValue)
+                        {
+                            WriteWheelDiamToBaseJsonSlot();
+                            qDebug()<<"Diam Cali Save:";
+                        }
+                        else
+                        {
+                            qDebug()<<"Diam Cali Cancle:";
+                        }
+                        this->NeedOutODOCaliFlag = true;
+                        this->WheelCaliDist = 0;
+                    }
+                }
+            }
+            qDebug()<<"WC:"<<RxMessage;
+        }
+        else if(RxMessage.contains("CameraCali:"))
+        {
+            RxMessage = RxMessage.replace("CameraCali:","");
+            RxMessage = RxMessage.replace("\n","");
+            QStringList RxMessageList = RxMessage.split(",", QString::SkipEmptyParts);
+
+            if(RxMessageList.size() == 2)
+            {
+                bool convertResult = false;
+                int converValue = RxMessageList.at(0).toInt(&convertResult);
+                if(convertResult)
+                {
+                    if(converValue)//start cali
+                    {
+                        converValue = RxMessageList.at(1).toInt(&convertResult);
+                        if(convertResult)
+                        {
+                            if(converValue)
+                            {
+                                this->WriteMainPipeSlot(STATE_CAMERACALI_AUTO);//camera cali auto
+                                this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
+                                qDebug()<<"CCAuto:"<<STATE_CAMERACALI_AUTO;
+                            }
+                            else
+                            {
+                                this->WriteMainPipeSlot(STATE_CAMERACALI_MANUAL);//to release the camera
+                                this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,HIGH);
+                                qDebug()<<"CCManul:"<<STATE_CAMERACALI_MANUAL;
+                            }
+                        }
+
+                    }
+                    else
+                    {
+                        this->WriteMainPipeSlot(STATE_SB);
+                        this->CartStateCtlProcess->BSP_SetLed(LAMP_LED,LOW);
+                    }
+                }
+            }
+            qDebug()<<"CC:"<<RxMessage;
+        }
+        else if(RxMessage.contains("StartNewPath:"))
+        {
+        //request the station information
+            this->remainDistToStation = 0;
+            //this->remainDistToStationTxToEBox = 0;
+            this->ODOMark4VTPStationCalc = this->RxInfo.ODO;
+            this->stationInfoToSocket = "Station:"+QString::number(1) + "," +QString::number(this->remainDistToStation);
+
+            this->retrySendStationInfoToSocketFlag = true;
+            qDebug()<<"StartNewPath:";
+        }
+    #if(CREATE_MAP_USED)
+        else if(RxMessage.contains("BuildMap:"))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_VTP);
+            this->MarkCntRecord             = 0;
+            this->StationName4VTP           = 0;
+            this->FaceDirFlag               = true;//forward
+            this->ODOMark4VTPStationCalc    = this->RxInfo.ODO;
+            this->inBuildMapModeFlag        = true;
+
+            //clear map json
+            QFile *file = new QFile(MAP_TEMP_FILE_NAME);
+            if(file->exists()) file->remove();
+
+            QJsonObject obj;
+            obj.insert("stations_num",1);
+            obj.insert("0->0","0,0");
+
+            QJsonDocument doc;
+            doc.setObject(obj);
+
+            file->open(QIODevice::WriteOnly|QIODevice::Truncate);
+            file->seek(0);
+            file->write(doc.toJson());
+            file->flush();
+            file->close();
+
+            delete file;
+        }
+        else if(RxMessage.contains("MapSave:"))
+        {
+            QString cmd = "sudo cp -f " + MAP_TEMP_FILE_NAME + " " + MAP_FILE_NAME;
+
+            QProcess *process = new QProcess();
+            process->start(cmd);
+            process->waitForStarted();
+            process->waitForFinished();
+
+            process->start("sync");
+            process->waitForStarted();
+            process->waitForFinished();
+
+            this->inBuildMapModeFlag        = false;
+        }
+        else if(RxMessage.contains("MapCancle:"))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
+            this->inBuildMapModeFlag        = false;
+        }
+    #endif
+    }
+}
+
+#else
 void FTR_CTR3SpeedCtl::tcpServerConnectionSlot(void)
 {
     this->SocketReadyFlag = true;
@@ -2563,7 +3194,7 @@ void FTR_CTR3SpeedCtl::tcpServerConnectionSlot(void)
     quint16 port = this->tcpSocket->peerPort();
 
     //qDebug()<<ip<<":"<<port<<"connect success";
-    qDebug()<<"TCP Server Connected"<<ip<<":"<<port<<"connect success";
+    qDebug()<<"TCP Server Connected"<<ip<<":"<<port<<"connect success"<<this->tcpServer->maxPendingConnections();
 
     connect(this->tcpSocket,SIGNAL(readyRead()),this,SLOT(tcpSocketReadSlot()));
     connect(this->tcpSocket,SIGNAL(disconnected()),this,SLOT(tcpSocketDisconnectSlot()));
@@ -2573,10 +3204,10 @@ void FTR_CTR3SpeedCtl::tcpSocketDisconnectSlot()
 {
     qDebug()<<"Socket Disconnect";
     this->SocketReadyFlag = false;
-    this->tcpSocket->deleteLater();
+//    this->tcpSocket->deleteLater();
 }
 
-void FTR_CTR3SpeedCtl::tcpSocketReadSlot(void)
+void FTR_CTR3SpeedCtl::tcpSocketReadSlot(qint8 i)
 {
     //if(this->tcpSocket->canReadLine())
     {
@@ -2891,6 +3522,7 @@ void FTR_CTR3SpeedCtl::tcpSocketSendMessageSlot(QString message)
         this->tcpSocket->write(toSendMessage.toLatin1());
     }
 }
+#endif
 
 void FTR_CTR3SpeedCtl::lowPowerToShutDownSystemSlot(void)
 {
@@ -3353,8 +3985,8 @@ FTR_CTR3SpeedCtl::~FTR_CTR3SpeedCtl()
 {    
     delete JsonFile;
     delete MainInputPipeFile;
-    delete VTKOutputPipeFile;
-    delete VTPOutputPipeFile;
+    //delete VTKOutputPipeFile;
+    //delete VTPOutputPipeFile;
     delete SaveLogFile;
 
     delete SettingJsonFile;

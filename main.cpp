@@ -4,8 +4,9 @@
 #include <sys/stat.h>//mkfifo
 #include <licensecheck.h>
 #include <PlatformParameter.h>
+#include <fstream>
 
-#if(0)
+#if(1)
 #include <QMutex>
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
@@ -39,26 +40,22 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
             .arg(localMsg.constData()).arg(context.file).arg(context.line).arg(context.function).arg(strDateTime);
 #else
     QString strDateTime = QDateTime::currentDateTime().toString("yyyy-MM-dd-hh:mm:ss");
-    QString strMessage = QString("%1:%2").arg(strDateTime).arg(localMsg.constData());
+    QString strMessage = QString("%1 %2").arg(strDateTime).arg(localMsg.constData());
 #endif
-//    QTextStream stream(&this.logFile);
-//    stream<<strMessage<<"\r\n";
 
     // 输出信息至文件中（读写、追加形式）
-    QString logFileNameStr=LOG_PATH_NAME;
-    logFileNameStr.append(QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss")));
+    static QFile file(LOG_FILE_NAME);
 
-    static QFile file(logFileNameStr);
-
-    if(!file.isOpen())
+    if(!file.isOpen() || !file.exists())
     {
         if(file.open(QIODevice::WriteOnly | QIODevice::Append))
         {
-            cout<<"file open sucessful"<<endl;
+            cout<<LOG_FILE_NAME<<" file open sucessful"<<endl;
         }
         else
         {
-            cout<<"file open faile"<<endl;
+            cout<<LOG_FILE_NAME<<" file open faile,Close it"<<endl;
+            file.close();
         }
     }
 
@@ -68,9 +65,36 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
         stream << strMessage << "\r\n";
         file.flush();
     }
-
     // 解锁
     mutex.unlock();
+}
+#else
+void  qtLogToFile(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    const std::string logTypes[] = { "Debug", "Warning", "Critical", "Fatal", "Info" };
+    std::cout << "[Qt]  [" << logTypes[type] << "]  " << msg.toLocal8Bit().constData();
+#ifndef NDEBUG
+    std::cout << "  (" << context.file << ": " << context.line << ", " << context.function;
+#endif
+    std::cout << std::endl;
+}
+void initLog()
+{
+//    QString logDir = "/tmp/ftrCartCtllog";
+//    QDir dir;
+//    if(!dir.exists(logDir))
+//        dir.mkdir(logDir);
+    QString logFile = "/tmp/ftrCartCtlLog";
+    std::string logPath = logFile.toStdString();
+
+    std::ofstream* _log = new std::ofstream(logPath.c_str());
+    if(!_log)
+        return;
+    // Redirect std iostream
+    std::cout.rdbuf(_log->rdbuf());
+    std::cerr.rdbuf(_log->rdbuf());
+    // Redirect qt logs to stdout, thus to our log file
+    qInstallMessageHandler(qtLogToFile);
 }
 #endif
 
@@ -103,9 +127,11 @@ int main(int argc, char *argv[])
     umask(0);
     int result = mkfifo(FTRCARTCTL_IN_PIPE_NAME,0777);
     result = mkfifo(FTRCARTCTL_OUT_PIPE_NAME,0777);
-
+#if(RT_LOG_MAINTAIN_USED)
     //int ret = 0;
-    //qInstallMessageHandler(myMessageOutput);
+    qInstallMessageHandler(myMessageOutput);
+    //initLog();
+#endif
     FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);
 
     return a.exec();

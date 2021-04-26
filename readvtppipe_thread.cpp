@@ -8,12 +8,12 @@ ReadVTPPipe_Thread::ReadVTPPipe_Thread()
 ReadVTPPipe_Thread::ReadVTPPipe_Thread(QString pipeFileName)
 {
     this->pipeFileName = pipeFileName;
-    qDebug()<<pipeFileName;
+    qDebug()<<"ReadVTPPipe_Thread:"<<pipeFileName;
 }
 
 void ReadVTPPipe_Thread::run()
 {
-    qDebug()<<"Read VTP Pipe:"<<QThread::currentThreadId();
+    qDebug()<<"Read VTP Pipe:"<<QThread::currentThreadId()<<this->pipeFileName;
     this->isRunable = true;
     this->pipeFile  = new QFile(this->pipeFileName);
     if(pipeFile->exists() && (!pipeFile->isOpen()))
@@ -24,14 +24,21 @@ void ReadVTPPipe_Thread::run()
         }
         else
         {
-            qDebug()<<"Open File faile";
+            qDebug()<<this->pipeFile->fileName()<<"Open File faile";
+            this->stop();
         }
+    }
+    else
+    {
+        qDebug()<<"Read VTP Pipe:"<<this->pipeFileName<<pipeFile->exists()<<pipeFile->isOpen();
+        this->stop();
     }
 
     while(this->isRunable)
     {
         //if(this->pipeFile->canReadLine())
         //if(this->pipeFile->size() != 0)
+        if(this->pipeFile->isReadable())
         {
             QString VTPInfoStr = this->pipeFile->readLine();
 
@@ -46,7 +53,7 @@ void ReadVTPPipe_Thread::run()
                 {
                     this->VTPInfo.PointOnTape[i] = RxInfoList.at(i).toInt();
                 }
-                this->VTPInfo.SpeedCtl      = (SpeedCtl_e)(-RxInfoList.at(7).toInt());//
+                this->VTPInfo.SpeedCtl      = (SpeedCtl_e)(RxInfoList.at(7).toInt());//
                 this->VTPInfo.StationName   = (RxInfoList.at(8).toInt());
                 this->VTPInfo.ToStationDist = (RxInfoList.at(9).toUInt());
                 this->VTPInfo.GotMarkFlag   = (bool)(RxInfoList.at(10).toInt());

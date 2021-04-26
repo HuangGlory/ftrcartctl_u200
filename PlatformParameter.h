@@ -23,6 +23,10 @@
 #define COMPARSION_REALTIME             (1)
 #define AUTO_DETECT_FRP                 (1)
 #define VTK_UWB_DIST_USED               (1)
+#define UDP_USED                        (1)
+#define MULTIC_TCP_SUPPORT              (1)
+//mantain rtime log
+#define RT_LOG_MAINTAIN_USED            (1)
 
 #define SERIAL_TYPE_USB                 (1)
 #define SERIAL_TYPE_TTL                 (2)
@@ -32,6 +36,11 @@
 #define STATIONS_NUM                    (9)
 #define DIST_BT_STATION                 (1000)
 #define DEFAULT_FIXED_DIST              (900)
+
+#if(UDP_USED)
+#define LOCAL_PORT                      (11121)
+#define DEST_PORT                       (10500)
+#endif
 
 #define PLATFORM_R3                     (1)
 #define PLATFORM_U250                   (2)
@@ -626,7 +635,7 @@ typedef struct _TaskFlag_t
 
 typedef enum
 {
-    SPEED_CTL_DOWN = -1,
+    SPEED_CTL_DOWN = 0,//-1,
     SPEED_CTL_NULL = 0,
     SPEED_CTL_UP   = 1
 }SpeedCtl_e;
@@ -664,6 +673,7 @@ typedef struct _VTPInfo_t
     ActionOnCrossType_e setAction;
     bool     ToPushFlag;
     bool     FirstIntoVTPFlag;
+    bool    itNeedToSpeedUpFromVisionFlag;
 }VTPInfo_t;
 
 typedef struct _VTKInfo_t

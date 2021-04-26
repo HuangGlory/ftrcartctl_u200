@@ -5,6 +5,7 @@ void FTR_CTR3SpeedCtl::SB_Enter()//CMD = 0x12
 //    this->SendCMD(CMD_USER_ENTER_SB);
 #if(1)
     QByteArray  ByteArray;
+    //ByteArray.resize(13);
 
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_USER_ENTER_SB;
@@ -43,6 +44,7 @@ void FTR_CTR3SpeedCtl::SB_RealTimeInfo()
 {
     QByteArray  ByteArray;
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+    //ByteArray.resize(14);
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_POSE_INFO;
     ByteArray[2]=0x00;

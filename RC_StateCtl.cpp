@@ -9,6 +9,7 @@ void FTR_CTR3SpeedCtl::RC_RealTimeInfo()//CMD = 0x93
 {
     QByteArray  ByteArray;
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+    //ByteArray.resize(14);
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_POSE_INFO;
     ByteArray[2]=0x00;

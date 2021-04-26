@@ -8,7 +8,7 @@ ReadInputPipe_Thread::ReadInputPipe_Thread()
 ReadInputPipe_Thread::ReadInputPipe_Thread(QString pipeFileName)
 {
     this->pipeFileName = pipeFileName;
-    qDebug()<<pipeFileName;
+    qDebug()<<"ReadInputPipe_Thread:"<<pipeFileName;
 }
 
 void ReadInputPipe_Thread::run()
@@ -24,13 +24,20 @@ void ReadInputPipe_Thread::run()
         }
         else
         {
-            qDebug()<<"Open File faile";
+            qDebug()<<this->pipeFile->fileName()<<"Open File faile";
+            this->stop();
         }
+    }
+    else
+    {
+        qDebug()<<"Read input Pipe:"<<this->pipeFileName<<pipeFile->exists()<<pipeFile->isOpen();
+        this->stop();
     }
 
     while(this->isRunable)
     {
         //if(this->pipeFile->canReadLine())
+        if(this->pipeFile->isReadable())
         {
             QString RxInfo = this->pipeFile->readLine();
             if(!RxInfo.isEmpty())  emit UpdateInfoSignal(RxInfo);

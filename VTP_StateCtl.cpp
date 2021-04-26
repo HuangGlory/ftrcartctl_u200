@@ -8,6 +8,8 @@ void FTR_CTR3SpeedCtl::VTP_Enter()//CMD = 0x91
 {
     QByteArray  ByteArray;
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+    //ByteArray.resize(23);
+
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_ENTER_VTAPE;
     ByteArray[2]=0x00;
@@ -79,6 +81,8 @@ void FTR_CTR3SpeedCtl::VTP_RealTimeInfo()//CMD = 0x90:usb //CMD = 0xAA:ttl
 
     QByteArray  ByteArray;
 #if(SERIAL_TYPE == SERIAL_TYPE_USB)
+    //ByteArray.resize(30);
+
     ByteArray[0]=SOP_USB;
     ByteArray[1]=CMD_VTAPE_INFO;
     ByteArray[2]=0x00;

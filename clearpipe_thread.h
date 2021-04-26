@@ -20,9 +20,10 @@ public:
 
 private:
     virtual void run() override;
-    void SetPipeFileName(QString pipeFileName);
+
 
 public:
+    void SetPipeFileName(QString pipeFileName);
     void stop(void);
     bool isRunable;
 };

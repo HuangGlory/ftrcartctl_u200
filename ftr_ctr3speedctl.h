@@ -31,6 +31,10 @@
 
 #include <QTcpServer>  //监听套接字
 #include <QTcpSocket> //通信套接字
+#include "tcp_server.h"
+
+#include <QUdpSocket>
+#include <QDataStream>
 
 #if(PLATFORM == PLATFORM_R3)
 #include <imu.h>
@@ -46,6 +50,13 @@
 
 #include <iostream>
 using namespace std;
+
+//rtime log file name
+#define LOG_FILE_NAME          ("/home/pi/ftrCartCtl/log/rtlog")
+#define LOG_MAX_SIZE           (quint32)(2147483648)//2G
+
+//get ip addr
+#define GET_IP_CMD               tr("ifconfig wlan0 |awk '/inet 192/ {print $2};'")
 
 //vision version file name
 #define VISION_VERSION_FILE_NAME tr("/home/pi/vision/VERSION.md")
@@ -101,9 +112,29 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.15.00.U200@20210224\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.19.00.U200@20210425\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.19.00.U200@20210425
+ * 1.增强读文件异常处理,如果pipe不存在或已经被打开,retry
+ * 2.增加模式可切换,通过pipe_input
+ * 3.将信息输出pipe_output
+ * 4.将debug信息输出到/tmp/ftrCartCtlLog file 下，超过2G后删除
+ *
+ * ftrCartCtl Ver:0.0.18.00.U200@20210420
+ * 1.增强读文件异常处理
+ * 2.增加udp broadcast ip address and hostname
+ *
+ * ftrCartCtl Ver:0.0.17.00.U200@20210408
+ * 1.udp test
+ * 2.QByteArray 不用resize，
+ * 3.QByteArray,发布成debug版本时会提示有问题，不能通信
+ * 4.fix read pipe bug,"QIODevice::read (QFile, ""): device not open"问题，路径偶尔出现空
+ *
+ * ftrCartCtl Ver:0.0.16.00.U200@20210402
+ * 1.增加不同颜色使用不同速度，看到不同颜色的tape，可以自动加减速
+ * 2.修改TCP连接，
+ *
  * ftrCartCtl Ver:0.0.15.00.U200@20210224
  * 1.added speed up test
  * 2.auto detect frp exist and auto tar it
@@ -428,6 +459,7 @@ public:
 
     void    SendCMD(UserCmd cmd,quint8 data1 = 0x00,quint8 data2 = 0x00,quint8 data3 = 0x00);
 
+
 #if(CREATE_UPDATEALLAPP_SCRIPT_USED)
     void CreateUpdateScript(void);
 #endif
@@ -482,6 +514,9 @@ public:
     //static void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 
 public slots:
+#if(RT_LOG_MAINTAIN_USED)
+    quint32 CheckRTLogSize();
+#endif
 #if(UWB_USED)
     void UWBInfoSlot(UWBInfo_t info);
 #endif
@@ -502,6 +537,10 @@ public slots:
 #endif
 
 #if(GET_SSID_USED)
+    void get_ip_addr(void);
+    void getCartModel(void);
+    void getHostName(void);
+
     void on_frpServerReadOutputSlot(void);
     void on_GetSSIDReadOutputSlot(void);
     void getSSIDScript(void);
@@ -553,11 +592,31 @@ public slots:
     void BTRCCmdSlot(RCCMD_e);
 #endif
 
+#if(MULTIC_TCP_SUPPORT)
+    void ClientConnected(qintptr handle, QTcpSocket *socket);
+    void ClientDisconnected(qintptr handle);
+    /**
+     * @brief 服务端收到消息的信号
+     *    若想要统一管理或做日志处理可连接此信号
+     * @param 收到消息的连接句柄
+     * @param 收到消息的socket指针
+     * @param 收到的消息内容
+     */
+    void ServerRecvedSlot(qintptr handle, QTcpSocket *socket, const QByteArray &data);
+
+    void tcpSocketReadSlot(QString rxData);
+    void tcpSocketSendMessageSlot(QString message);
+    void tcpSocketSendMessageToDeviceSlot(QString message);
+#else
     void tcpServerConnectionSlot(void);
     void tcpSocketReadSlot(void);
     void tcpSocketSendMessageSlot(QString message);
     void tcpSocketDisconnectSlot();
+#endif
 
+#if(UDP_USED)
+    void updSendMessage(QString message);
+#endif
     void lowPowerToShutDownSystemSlot(void);
     void calcCapacitySlot(double voltage);
 
@@ -565,6 +624,9 @@ public slots:
 
     void getVisionVersionInfoSlot(void);
 signals:
+#if(MULTIC_TCP_SUPPORT)
+    void ServerRecved(qintptr, QTcpSocket*, const QByteArray &);
+#endif
     //void BroadcastCartStateSignal(CartState_e);
     //void ReadVTPInfoSignal();
     //void ReadVTKInfoSignal();
@@ -585,6 +647,7 @@ private:
     void TxToBLDC_RTData(int16_t speed_l,int16_t speed_r,uint8_t CtlByte,double LeftODOFactor,double RightODOFactor,CartState_e CartState,int8_t PIDStop);
 
     void ReadVersionOfEBox(void);
+
 private:
     QSharedDataPointer<FTR_CTR3SpeedCtlData> data;
 
@@ -638,6 +701,8 @@ private:
     bool            IntoConfigureModeFlag;
     bool            InSetOAGlobalFlag;
     bool            SocketReadyFlag;
+    bool            RemoteSocketReadyFlag;
+    bool            NeedInfoFromOutputPipeFlag;
     bool            itNeedSendInfoToPhoneFlag;
     bool            EboxReadyFlag;
 
@@ -693,8 +758,8 @@ private:
     QFile           *JsonFile;
     QFile           *MainInputPipeFile;
     QFile           *StateInfoInputPipeFile;
-    QFile           *VTKOutputPipeFile;
-    QFile           *VTPOutputPipeFile;
+    //QFile           *VTKOutputPipeFile;
+    //QFile           *VTPOutputPipeFile;
     QFile           *ftrCartCtlInputPipeFile;
     QFile           *ftrCartCtlOutputPipeFile;
 
@@ -714,9 +779,16 @@ private:
     PointAxis_t     PointAxis4CalcArc[3];
     ArcInfo_t       ArcInfo;
     quint16         theMinR;
-
+#if(MULTIC_TCP_SUPPORT)
+    TcpServer *tcp_server_;
+    QTcpSocket *tcpSocket; //定义通信套接字tcpSocket from localhost
+    QTcpSocket *RemoteTcpSocket;
+    qintptr    tcpSocketHandle;
+    qintptr    RemoteTcpSocketHandle;
+#else
     QTcpServer *tcpServer; //定义监听套接字tcpServer
     QTcpSocket *tcpSocket; //定义通信套接字tcpSocket
+#endif
 
     BatCapacityInfo_t batCapacityInfo;
 
@@ -774,10 +846,16 @@ private:
     QProcess *frpServerProcess;
     quint32  frpServerProcessID;
     QString currentSSID;
+    QString currentIPAddr;
+    QString HostName;
+    QString CartModel;
 #endif
 
     QString visionVersionStr;
-
+    QString AllVersionStr;
+#if(UDP_USED)
+    QUdpSocket *udpSocket;
+#endif
 };
 
 #endif // FTR_CTR3SPEEDCTL_H

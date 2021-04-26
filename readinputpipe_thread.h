@@ -21,12 +21,13 @@ public:
 
 private:
     virtual void run() override;
-    void SetPipeFileName(QString pipeFileName);
+
 
 signals:
     void UpdateInfoSignal(QString);
 
 public:
+    void SetPipeFileName(QString pipeFileName);
     void stop(void);
     bool isRunable;
     //void clearPipe(void)

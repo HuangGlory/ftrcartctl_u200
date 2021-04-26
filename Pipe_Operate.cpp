@@ -71,8 +71,11 @@ void FTR_CTR3SpeedCtl::WriteMainPipeSlot(CartState_e cartState)
     {
         state = "6";
     }
-    this->MainInputPipeFile->write(state.toUtf8());
-    this->MainInputPipeFile->flush();
+    if(this->MainInputPipeFile->isWritable())
+    {
+        this->MainInputPipeFile->write(state.toUtf8());
+        this->MainInputPipeFile->flush();
+    }
     //qDebug()<<"WriteMainPipeSlot"<<cartState<<state.toUtf8();
 }
 
@@ -80,8 +83,11 @@ void FTR_CTR3SpeedCtl::WriteInfoToVisionPipeSlot(QString info)//cycle per second
 {
     if(this->StateInfoInputPipeFile->size() == 0)
     {
-        this->StateInfoInputPipeFile->write(info.toUtf8());
-        this->StateInfoInputPipeFile->flush();
+        if(this->StateInfoInputPipeFile->isWritable())
+        {
+            this->StateInfoInputPipeFile->write(info.toUtf8());
+            this->StateInfoInputPipeFile->flush();
+        }
         //QFileInfo *fileInfo = new QFileInfo(this->StateInfoInputPipeFile->fileName());
         //qDebug()<<"ToVisionInfo:"<<info.toUtf8();
     }
@@ -93,7 +99,15 @@ void FTR_CTR3SpeedCtl::WriteInfoToVisionPipeSlot(QString info)//cycle per second
 
 void FTR_CTR3SpeedCtl::WriteOutPipeSlot(QString str)
 {
-    qDebug()<<str;
+    //qDebug()<<str;
+    //if(this->ftrCartCtlOutputPipeFile->size() == 0)
+    {
+        if(this->ftrCartCtlOutputPipeFile->isWritable())
+        {
+            this->ftrCartCtlOutputPipeFile->write(str.toUtf8());
+            this->ftrCartCtlOutputPipeFile->flush();
+        }
+    }
 }
 
 //void FTR_CTR3SpeedCtl::ReadVTPInfoFromPipeSlot()
@@ -237,6 +251,9 @@ void FTR_CTR3SpeedCtl::UpdateVTPInfoSlot(VTPInfo_t VTPInfo)
         this->VTPInfo.SpeedCtl = VTPInfo.SpeedCtl;
     }
     //qDebug()<<"SCTL:"<<this->VTPInfo.SpeedCtl;
+    #else
+    this->VTPInfo.itNeedToSpeedUpFromVisionFlag = (VTPInfo.SpeedCtl == SPEED_CTL_UP)?(true):(false);
+    //qDebug()<<"SU:"<<VTPInfo.SpeedCtl<<this->VTPInfo.itNeedToSpeedUpFromVisionFlag;
     #endif
     #if(NUM_STATION_USED)
         /*if((VTPInfo.StationName == -1) && (this->StartActionFlag))
@@ -427,6 +444,10 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
             }
         }
     }
+    else if(str.contains("NeedInfo:"))
+    {
+        this->NeedInfoFromOutputPipeFlag = true;
+    }
     else if(str.contains("ModeChange:"))
     {
         str = str.replace("ModeChange:","");
@@ -436,6 +457,10 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
         {
             this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
             this->streamlitKeepRunFlag = false;
+        }
+        else if(str.contains("RC",Qt::CaseInsensitive))
+        {
+            this->CartStateCtlProcess->SetCartStateExternal(STATE_RC);
         }
         else if(str.contains("VTK",Qt::CaseInsensitive))
         {
