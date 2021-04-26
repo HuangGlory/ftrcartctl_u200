@@ -1656,7 +1656,7 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
        #if(UDP_USED)
             if((!this->RemoteSocketReadyFlag) && (!this->currentIPAddr.isEmpty())) //udp broadcast cart info
             {
-                this->updSendMessage(this->currentIPAddr+"：50006,"+this->HostName+"\n");
+                this->updSendMessage(this->currentIPAddr+":50006,"+this->HostName+"\n");
                 //qDebug()<<"UDPTX:";
             }
         #endif
