@@ -195,6 +195,7 @@ typedef enum
     RX_INFO_ORDER_PITCH                 = 21,
     RX_INFO_ORDER_YAW                   = 22,
 
+    //RX_INFO_FAULT                       = 23,
     RX_INFO_LEN
 }RxInfo_e;
 
@@ -625,6 +626,8 @@ typedef struct _RxInfo_t
     int16_t roll;
     int16_t pitch;
     int16_t yaw;
+
+    //uint32_t fault;
 }RxInfo_t;
 
 typedef struct _TaskFlag_t

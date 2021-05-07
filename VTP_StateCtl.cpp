@@ -217,6 +217,7 @@ void FTR_CTR3SpeedCtl::VTP_InitParameter()
     this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.USOAOn_Off      = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off;//this->US_OAFlag;//true;
     this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.UturnDir        = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir;//this->UturnDirFlag;
     this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.OASetOnStation  = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OASetOnStation;
+    this->CartModeEnterParameter.VTPCtlByte.CtlByteFlag.OABeepSound     = this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.OABeepSound;
 
     this->CartModeEnterParameter.LeftDiam               = this->SettingParameterFromJson.LeftDiam;//this->LeftWheelDiameter;//(168.8850);
     this->CartModeEnterParameter.RightDiam              = this->SettingParameterFromJson.RightDiam;//this->RightWheelDiameter;//(168.9614);

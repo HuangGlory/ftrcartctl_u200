@@ -114,6 +114,8 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->SettingParameterFromJson.VTKCtlByte.CtlByte = 0x00;
     this->SettingParameterFromJson.MarchCtlByte.CtlByte = 0x00;
 
+    this->CartModeEnterParameter.VTPCtlByte.CtlByte = 0x00;
+
     this->GetSettingParameterFromJson(this->SettingJsonFileName);
 
     this->MainInputPipeName = MAIN_INPUT_DEFAULT_PIPE_NAME;
@@ -189,7 +191,10 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
-    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
+    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && QFile(VTP_OUTPUT_DEFAULT_PIPE_NAME).exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
+    {
+        QThread::sleep(1);
+    }
     qDebug()<<"Pipe file ready";
 #endif
 
@@ -583,7 +588,7 @@ quint32 FTR_CTR3SpeedCtl::CheckRTLogSize()
 
         qDebug()<<"Log File Too Large to del:"<<rmLogFileCmd;
     }
-    qDebug()<<rtlogSize;
+    qDebug()<<"rtlogSize:"<<rtlogSize;
     return rtlogSize;
 }
 #endif
@@ -1972,6 +1977,9 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
 
                 convertValue        = RxInfoList.at(RX_INFO_ORDER_YAW).toInt(&convertResult);
                 if(convertResult)    this->RxInfo.yaw = convertValue;
+
+                //convertValue        = RxInfoList.at(RX_INFO_FAULT).toInt(&convertResult);
+                //if(convertResult)    this->RxInfo.fault = (uint32_t)(convertValue);
 
                 this->timeElapsedGotODOToMark->start();
                 if(this->HSWant2State != this->RxInfo.HSWantToCartState)

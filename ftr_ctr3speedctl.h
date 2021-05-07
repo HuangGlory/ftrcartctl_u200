@@ -56,7 +56,7 @@ using namespace std;
 #define LOG_MAX_SIZE           (quint32)(2147483648)//2G
 
 //get ip addr
-#define GET_IP_CMD               tr("ifconfig wlan0 |awk '/inet 192/ {print $2};'")
+//#define GET_IP_CMD               tr("ifconfig wlan0 |awk '/inet 192/ {print $2};'")
 
 //vision version file name
 #define VISION_VERSION_FILE_NAME tr("/home/pi/vision/VERSION.md")
@@ -112,9 +112,13 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.19.00.U200@20210425\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.20.00.U200@20210430\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.20.00.U200@20210430
+ * 1.VTP可以设置OA beep sound可开关
+ * 2.等pipe时，增加sleep
+ *
  * ftrCartCtl Ver:0.0.19.00.U200@20210425
  * 1.增强读文件异常处理,如果pipe不存在或已经被打开,retry
  * 2.增加模式可切换,通过pipe_input
