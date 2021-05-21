@@ -319,6 +319,28 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
         }
     }
 
+#if(RT_LOG_MAINTAIN_USED)
+    {
+        QDir dir(RTLOG_FILE_PATH);
+        dir.setFilter(QDir::Files);
+        QStringList files = dir.entryList();
+        QDateTime time;
+        uint currentDateTime = QDateTime::currentDateTime().toTime_t();
+        foreach(QString fileStr, files)
+        {
+            time = QDateTime::fromString(fileStr,"yyyyMMdd-HH-mm-ss");
+            uint detTime = currentDateTime - time.toTime_t();//un:second
+            if(detTime >= 432000)//5*24*60*60 aboue 5 days
+            {
+                QFile file(LOG_PATH_NAME + fileStr);
+                file.remove();
+                //qDebug()<<LOG_PATH_NAME + fileStr<<detTime;
+            }
+        }
+
+    }
+#endif
+
     //delete unuse files *.tgz,*.md5
     {
         QDir dir(WORKING_PATH_NAME);
@@ -564,9 +586,14 @@ void FTR_CTR3SpeedCtl::autoDetectFRP(void)
 #endif
 
 #if(RT_LOG_MAINTAIN_USED)
+void FTR_CTR3SpeedCtl::setRtlogFileName(QString fileName)
+{
+    this->rtlogFileName = fileName;
+    qDebug()<<"rtlog file name:"<<this->rtlogFileName;
+}
 quint32 FTR_CTR3SpeedCtl::CheckRTLogSize()
 {
-    QString getSizeCmd = "du -sh "+ QString(LOG_FILE_NAME);
+    QString getSizeCmd = "du -sh "+ QString(this->rtlogFileName);
     //QProcess用于启动外部程序
     QProcess process;
 
@@ -577,11 +604,11 @@ quint32 FTR_CTR3SpeedCtl::CheckRTLogSize()
 
     //获取命令执行的结果
     QByteArray result_ = process.readAllStandardOutput();
-    result_.replace(LOG_FILE_NAME,"").replace("K\t\n","");
+    result_.replace(this->rtlogFileName,"").replace("K\t\n","");
     quint32 rtlogSize = result_.toDouble()*1024;
     if(LOG_MAX_SIZE < rtlogSize)
     {
-        QString rmLogFileCmd = "sudo rm -rf "+QString(LOG_FILE_NAME);
+        QString rmLogFileCmd = "sudo rm -rf "+QString(this->rtlogFileName);
         process.start(rmLogFileCmd);
         //等待命令执行结束
         process.waitForFinished();

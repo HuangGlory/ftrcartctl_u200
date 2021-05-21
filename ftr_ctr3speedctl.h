@@ -52,7 +52,7 @@
 using namespace std;
 
 //rtime log file name
-#define LOG_FILE_NAME          ("/home/pi/ftrCartCtl/log/rtlog")
+#define RTLOG_FILE_PATH          ("/home/pi/ftrCartCtl/rtlog/")
 #define LOG_MAX_SIZE           (quint32)(2147483648)//2G
 
 //get ip addr
@@ -112,9 +112,12 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.20.00.U200@20210430\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.21.00.U200@20210511\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.21.00.U200@20210511
+ * 1.将debug信息输出到rtlog file 下，超过2G后删除
+ *
  * ftrCartCtl Ver:0.0.20.00.U200@20210430
  * 1.VTP可以设置OA beep sound可开关
  * 2.等pipe时，增加sleep
@@ -520,6 +523,7 @@ public:
 public slots:
 #if(RT_LOG_MAINTAIN_USED)
     quint32 CheckRTLogSize();
+    void setRtlogFileName(QString fileName);
 #endif
 #if(UWB_USED)
     void UWBInfoSlot(UWBInfo_t info);
@@ -859,6 +863,10 @@ private:
     QString AllVersionStr;
 #if(UDP_USED)
     QUdpSocket *udpSocket;
+#endif
+
+#if(RT_LOG_MAINTAIN_USED)
+    QString rtlogFileName;
 #endif
 };
 

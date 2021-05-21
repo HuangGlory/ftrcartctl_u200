@@ -4,10 +4,12 @@
 #include <sys/stat.h>//mkfifo
 #include <licensecheck.h>
 #include <PlatformParameter.h>
-#include <fstream>
 
-#if(1)
 #include <QMutex>
+// 输出信息至文件中（读写、追加形式）
+QString rtlogName = "";
+QFile file;
+
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     // 加锁
@@ -43,18 +45,15 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
     QString strMessage = QString("%1 %2").arg(strDateTime).arg(localMsg.constData());
 #endif
 
-    // 输出信息至文件中（读写、追加形式）
-    static QFile file(LOG_FILE_NAME);
-
     if(!file.isOpen() || !file.exists())
     {
         if(file.open(QIODevice::WriteOnly | QIODevice::Append))
         {
-            cout<<LOG_FILE_NAME<<" file open sucessful"<<endl;
+            cout<<file.fileName().toStdString()<<" file open sucessful"<<endl;
         }
         else
         {
-            cout<<LOG_FILE_NAME<<" file open faile,Close it"<<endl;
+            cout<<file.fileName().toStdString()<<" file open faile,Close it"<<endl;
             file.close();
         }
     }
@@ -68,35 +67,6 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
     // 解锁
     mutex.unlock();
 }
-#else
-void  qtLogToFile(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-{
-    const std::string logTypes[] = { "Debug", "Warning", "Critical", "Fatal", "Info" };
-    std::cout << "[Qt]  [" << logTypes[type] << "]  " << msg.toLocal8Bit().constData();
-#ifndef NDEBUG
-    std::cout << "  (" << context.file << ": " << context.line << ", " << context.function;
-#endif
-    std::cout << std::endl;
-}
-void initLog()
-{
-//    QString logDir = "/tmp/ftrCartCtllog";
-//    QDir dir;
-//    if(!dir.exists(logDir))
-//        dir.mkdir(logDir);
-    QString logFile = "/tmp/ftrCartCtlLog";
-    std::string logPath = logFile.toStdString();
-
-    std::ofstream* _log = new std::ofstream(logPath.c_str());
-    if(!_log)
-        return;
-    // Redirect std iostream
-    std::cout.rdbuf(_log->rdbuf());
-    std::cerr.rdbuf(_log->rdbuf());
-    // Redirect qt logs to stdout, thus to our log file
-    qInstallMessageHandler(qtLogToFile);
-}
-#endif
 
 /*各编码转换
 QString -> QByteArray      QString.toUtf8();
@@ -128,11 +98,29 @@ int main(int argc, char *argv[])
     int result = mkfifo(FTRCARTCTL_IN_PIPE_NAME,0777);
     result = mkfifo(FTRCARTCTL_OUT_PIPE_NAME,0777);
 #if(RT_LOG_MAINTAIN_USED)
+    //create dir
+    {
+        QDir *dir = new QDir();
+        if(!dir->exists("/home/pi/ftrCartCtl/rtlog"))
+        {
+            dir->mkdir("/home/pi/ftrCartCtl/rtlog");
+            cout<<"/home/pi/ftrCartCtl/rtlog not exist,create it!"<<endl;
+        }
+
+        delete dir;
+    }
+
+    rtlogName = RTLOG_FILE_PATH + QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
+    file.setFileName(rtlogName);
+
     //int ret = 0;
     qInstallMessageHandler(myMessageOutput);
     //initLog();
-#endif
-    FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);
 
+    FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);
+    ftrCartCtl.setRtlogFileName(rtlogName);
+#else
+    FTR_CTR3SpeedCtl ftrCartCtl;// = new FTR_CTR3SpeedCtl(nullptr);
+#endif
     return a.exec();
 }
