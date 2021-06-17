@@ -148,7 +148,7 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
         }
         else
         {
-            this->VTKInfo.VTKDist = (VTKInfo.VTKDist > this->UWBRxInfo.dist)?(this->UWBRxInfo.dist):(VTKInfo.VTKDist);
+            this->VTKInfo.VTKDist = (this->UWBBeUsedFlag && (VTKInfo.VTKDist > this->UWBRxInfo.dist))?(this->UWBRxInfo.dist):(VTKInfo.VTKDist);
             this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
         }
     #else
@@ -166,7 +166,7 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
 
 #if(1)//dist Comparison
     /*if(((abs(VTKInfo.VTKDist - this->UWBRxInfo.dist) > 600)) &&*/
-      if(((this->UWBRxInfo.dist - VTKInfo.VTKDist) > 1000) &&\
+      if(this->UWBBeUsedFlag && ((this->UWBRxInfo.dist - VTKInfo.VTKDist) > 1000) &&\
        (VTKInfo.VTKDist != 0) && (VTK_LOST_LEADER != VTKInfo.VTKDist) &&\
        this->itNeedComparisonFlag)//diff error
     {
@@ -174,6 +174,8 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
         {
             this->invalidTargetCnt = 2;
             this->CartWantToPNGState = true;//want to pause state
+
+            this->VTKDetectErrorTargetFlag = true;
             qDebug()<<"invalid target to Pause"<<VTKInfo.VTKDist<<this->UWBRxInfo.dist;
         }
     }
@@ -184,8 +186,20 @@ void FTR_CTR3SpeedCtl::UpdateVTKInfoSlot(VTKInfo_t VTKInfo)
 #endif
     //qDebug()<<this->VTKInfo.VTKDist<<VTKInfo.VTKDist<<this->UWBRxInfo.dist;
 #else
+    #if(0)
+    if(this->VTKInIdleFlag)
+    {
+        this->VTKInfo.VTKDist = VTKInfo.VTKDist;
+    }
+    else
+    {
+        this->VTKInfo.VTKDist = 2500;
+    }
+    this->VTKInfo.VTKAngle= 0;//VTKInfo.VTKAngle;
+    #else
     this->VTKInfo.VTKDist = VTKInfo.VTKDist;
     this->VTKInfo.VTKAngle= VTKInfo.VTKAngle;
+    #endif
 #endif
     this->VTK_RealTimeInfo();
     //qDebug()<<VTKInfo.numOfPeople<<VTKInfo.VTKDist<<VTKInfo.VTKAngle;
@@ -444,6 +458,31 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
             }
         }
     }
+#if(TOF_DIST_READING_USED)
+    else if(str.contains("TOFReading:"))
+    {
+        str = str.replace("TOFReading:","");
+        str = str.replace("\n","");
+        QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+        if(RxMessageList.size() == 1)
+        {
+            bool convertResult = false;
+            int converValue = RxMessageList.at(0).toInt(&convertResult);
+            if(convertResult)
+            {
+                if(converValue)
+                {
+                    this->NeedIntoTOFTestFlag = true;
+                }
+                else
+                {
+                    this->NeedOutTOFTestFlag = true;
+                }
+            }
+//            qDebug()<<"ReadingTOF:"<<this->itNeedReadingTOFDataFlag;
+        }
+    }
+#endif
     else if(str.contains("NeedInfo:"))
     {
         this->NeedInfoFromOutputPipeFlag = true;
@@ -604,7 +643,7 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
             this->EmitBeepSound(BEEP_TYPE_SHORT_BEEP_2);
         }
     }
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     else if(str.contains("AccGyroCali:"))
     {
         //qDebug()<<"toCaliBias:";
@@ -621,9 +660,20 @@ void FTR_CTR3SpeedCtl::UpdatePipeInputSlot(QString str)
         this->StopStreamlitUISlot();
     }
 #endif
+#if(MANTAIN_JSON_JQ_USED)
+    else if(str.contains("SetJson:"))
+    {
+        //uturn_oa_dis uwb_enable
+        str = str.replace("SetJson:","");
+        str = str.replace("\n","");
+
+        QStringList RxMessageList = str.split(",", QString::SkipEmptyParts);
+        if(RxMessageList.size() == 2) this->setValueInJsonUsedJQ(RxMessageList.at(0),RxMessageList.at(1));
+    }
+#endif
 }
 
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
 void FTR_CTR3SpeedCtl::UpdateIMUInfoSlot(Pose_t pose)
 {
     //qDebug()<<"Pose:"<<pose.norm<<pose.pitch<<pose.roll<<pose.yaw;

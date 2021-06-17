@@ -16,15 +16,20 @@
 #define ROUNT_SIMULATOR                 (0)
 #define CREATE_UPDATEALLAPP_SCRIPT_USED (1)
 #define USED_DEFAULT_UTURN_OA_DISABLE   (1)
-#define UWB_USED                        (0)
+#define UWB_USED                        (1)
 #define UWB_TEST_USED                   (0)
 #define GET_SSID_USED                   (1)
 #define FRP_SERVER_ALWAYS_ON            (0)
-#define COMPARSION_REALTIME             (1)
+#define COMPARSION_REALTIME             (0)
 #define AUTO_DETECT_FRP                 (1)
 #define VTK_UWB_DIST_USED               (1)
 #define UDP_USED                        (1)
 #define MULTIC_TCP_SUPPORT              (1)
+#define TOF_DIST_READING_USED           (1)
+#define IMU_USED                        (1)
+#define MANTAIN_JSON_JQ_USED            (1)
+#define REPORT_FAULT_USED               (0)
+
 //mantain rtime log
 #define RT_LOG_MAINTAIN_USED            (1)
 
@@ -46,6 +51,12 @@
 #define PLATFORM_U250                   (2)
 //#define PLATFORM                        (PLATFORM_R3)
 #define PLATFORM                        (PLATFORM_U250)
+
+#define CART_MODEL_M1                   ("M1")
+#define CART_MODEL_T150SML              ("T150SML")
+#define CART_MODEL_U200_A               ("U200-A")
+#define CART_MODEL_U200_B               ("U200-B")
+#define CART_MODEL_CTR3                 ("CTR3")
 
 #if(PLATFORM == PLATFORM_U250)
     #define LICENSE_USED            (0)
@@ -194,8 +205,9 @@ typedef enum
     RX_INFO_ORDER_ROLL                  = 20,
     RX_INFO_ORDER_PITCH                 = 21,
     RX_INFO_ORDER_YAW                   = 22,
-
-    //RX_INFO_ORDER_FAULT                       = 23,
+#if(REPORT_FAULT_USED)
+    RX_INFO_ORDER_FAULT                 = 23,
+#endif
     RX_INFO_LEN
 }RxInfo_e;
 
@@ -224,7 +236,7 @@ typedef enum
     //#define PI                              (double)(3.1415926)
     #define WHEEL_SIZE                      (double)(6.5)
     //170   208   259   310   411
-    #define WHEEL_DIAM                      (double)(168000)           //mm 25.4*WHEEL_SIZE
+    //#define WHEEL_DIAM                      (double)(168000)           //mm 25.4*WHEEL_SIZE
     //151.7246  185.6396  231.1570  276.6744  366.8166
     #define SPEED_FACTOR_6_5                (double)(151.7246/SPEED_READ_PER)       //(PI*WHEEL_DIAM*1000/(880*4))/SPEED_READ_PER
     #define SPEED_FACTOR_8                  (double)(185.6396/SPEED_READ_PER)       //(PI*WHEEL_DIAM*1000/(880*4))/SPEED_READ_PER
@@ -240,7 +252,8 @@ typedef enum
 
     //#define SPEED_FACTOR                    (SPEED_FACTOR_6_5)
     #define ODO_FACTOR                      (ODO_FACTOR_6_5)
-    #define ENCODER_CNT						(3520)
+    #define ENCODER_CNT_WDF					(uint16_t)(3520)
+    #define ENCODER_CNT_QJM					(uint16_t)(4096)
 #endif
 /*********************************************************/
 
@@ -627,7 +640,7 @@ typedef struct _RxInfo_t
     int16_t pitch;
     int16_t yaw;
 
-    //uint32_t fault;
+    uint32_t fault;
 }RxInfo_t;
 
 typedef struct _TaskFlag_t

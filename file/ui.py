@@ -2,8 +2,11 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-# Version:0.0.4.0
+# Version:0.0.5.0
 # log:
+# Version:0.0.5.0
+# 1.用pipe修改settings.json value
+# 2.增加TOF dist Read
 # Version:0.0.4.0
 # 1.增加更新AppServer function
 # 2.增加更新版本文件，使手机可以知道当前版本
@@ -35,7 +38,7 @@ import numpy as np
 import requests
 import hashlib
 
-VersionInfo = 'UI:0.0.4.0'
+VersionInfo = 'UI:0.0.5.0'
 
 PI = 3.1415926
 BETA_JSON_FILE = "Versionsbate.json"
@@ -107,7 +110,7 @@ SORC_DIR="vision"
 VISION_DIR="$curPath$SORC_DIR"
 echo ${VISION_DIR}
 GETNAMESTR=$VISION_DIR/*.md5
-FILENAME=$(ls $GETNAMESTR) 
+FILENAME=$(ls $GETNAMESTR)
 updateURL="updateURL"
 sudo rm -rf updateURL
 sleep 1
@@ -122,7 +125,7 @@ SWUPDATE="swupdate2.sh"
 echo "start run $DEST_DIR$SWUPDATE"
 sudo $DEST_DIR$SWUPDATE
 cd $curPath
-echo 
+echo
 echo
 sleep 2
 
@@ -602,10 +605,9 @@ def Update(somearg):
                 fp.close()
             cmd = "sudo tar zxvf " + update.AppServerFirmwareInLocal + " -C " + APPSERVER_APP_DIR
             st.write(cmd)
-            runScript(cmd,placeholder)
+            runScript(cmd, placeholder)
             my_bar.progress(28)
             st.success('---Decompress Finished---')
-
 
             visionFirmwareInLocal = 'file://' + VISION_FIRMWARE_DIR + update.urlVisionTGZ.split('/')[-1].replace('.tgz',
                                                                                                                  '')
@@ -677,25 +679,28 @@ def ConfigOA(somearg):
         json_data = json.load(fp)
         oaItemsList = list();
         for key in list(json_data.keys()):
-            if (key.find('oa') != -1):
+            if key.find('oa') != -1:
                 oaItemsList.append(key)
 
         selectItem = st.selectbox('Json Items:', oaItemsList)
+        selectValue = False
 
-        if (type(json_data[selectItem]) == bool):
+        if type(json_data[selectItem]) == bool:
             tup = ('False', 'True')
             stateModify = st.radio(selectItem, tup, json_data[selectItem])
-            json_data[selectItem] = bool(tup.index(stateModify))
+            # json_data[selectItem] = bool(tup.index(stateModify))
+            selectValue = (tup.index(stateModify))
 
         buttonState = st.button('save')
         st.write(json_data)
-
-        if (buttonState):
-            fp.seek(0)
-            fp.truncate()
-            json.dump(json_data, fp, indent=4, ensure_ascii=False)
-            fp.flush()
-            fp.close()
+        if buttonState:
+            cmd = ""
+            if selectValue:
+                cmd = "echo SetJson:%s,%s > /tmp/ftrCartCtl_pipe_input" % (selectItem, "true")
+            else:
+                cmd = "echo SetJson:%s,%s > /tmp/ftrCartCtl_pipe_input" % (selectItem, "false")
+            st.write(cmd)
+            os.system(cmd)
 
 
 def EditSettingJson(somearg):
@@ -704,19 +709,23 @@ def EditSettingJson(somearg):
     with open(JSON_FILE_NAME, 'r+', encoding='utf8') as fp:
         json_data = json.load(fp)
         selectItem = st.selectbox('Json Items:', list(json_data.keys()))
+        selectValue = 0
 
         if (type(json_data[selectItem]) == bool):
             tup = ('False', 'True')
             stateModify = st.radio(selectItem, tup, json_data[selectItem])
             json_data[selectItem] = bool(tup.index(stateModify))
+            selectValue = tup.index(stateModify)
 
         elif (type(json_data[selectItem]) == int):
             numModify = st.number_input(selectItem, None, None, json_data[selectItem], 1)
             json_data[selectItem] = numModify
+            selectValue = numModify
 
         elif (type(json_data[selectItem]) == float):
             numModify = st.number_input(selectItem, None, None, json_data[selectItem], 0.0001, '%.4f')
             json_data[selectItem] = numModify
+            selectValue = numModify
         else:
             print(type(json_data[selectItem]))
 
@@ -724,11 +733,27 @@ def EditSettingJson(somearg):
         st.write(json_data)
 
         if (buttonState):
-            fp.seek(0)
-            fp.truncate()
-            json.dump(json_data, fp, indent=4, ensure_ascii=False)
-            fp.flush()
-            fp.close()
+
+            cmd = ""
+            if type(json_data[selectItem]) == bool:
+                if selectValue:
+                    cmd = "echo SetJson:%s,%s > /tmp/ftrCartCtl_pipe_input" % (selectItem, "true")
+                else:
+                    cmd = "echo SetJson:%s,%s > /tmp/ftrCartCtl_pipe_input" % (selectItem, "false")
+            elif type(json_data[selectItem]) == int:
+                cmd = "echo SetJson:%s,%d > /tmp/ftrCartCtl_pipe_input" % (selectItem, selectValue)
+            elif type(json_data[selectItem]) == float:
+                cmd = "echo SetJson:%s,%.2f > /tmp/ftrCartCtl_pipe_input" % (selectItem, selectValue)
+
+            st.write(cmd)
+            os.system(cmd)
+
+            # pass
+            # fp.seek(0)
+            # fp.truncate()
+            # json.dump(json_data, fp, indent=4, ensure_ascii=False)
+            # fp.flush()
+            # fp.close()
 
 
 def EditSettingDJson(somearg):

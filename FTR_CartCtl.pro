@@ -5,7 +5,7 @@ CONFIG += c++11 console
 CONFIG -= app_bundle
 
 
-TARGET = ftrCartCtl_V0.0.21.00.U200@20210511
+TARGET = ftrCartCtl_V0.0.23.00.U200@20210608
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -63,6 +63,7 @@ HEADERS += \
     licensecheck.h \
     mapinfo.h \
     motorctrlinfo.h \
+    raspi-config.h \
     rc_thread.h \
     readinputpipe_thread.h \
     readvtkpipe_thread.h \

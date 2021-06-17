@@ -36,7 +36,7 @@
 #include <QUdpSocket>
 #include <QDataStream>
 
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
 #include <imu.h>
 #endif
 
@@ -47,6 +47,9 @@
 #if(UWB_USED)
 #include <uwb_aoa.h>
 #endif
+
+#include <raspi-config.h>
+#include <QMap>
 
 #include <iostream>
 using namespace std;
@@ -76,7 +79,7 @@ using namespace std;
 //UI script
 #define UI_SCRIPT_FILE_NAME        tr(":file//ui.py")
 #define UI_SCRIPT_DIST_DIR        tr("/home/pi/ftrCartCtl/ui.py")
-#define UI_SCRIPT_VERSION_INFO      tr("Version:0.0.4.0")
+#define UI_SCRIPT_VERSION_INFO      tr("Version:0.0.5.0")
 
 //autoRun.sh
 #define AUTO_RUN_FILE_NAME        tr(":file//autoRun.sh")
@@ -112,11 +115,28 @@ using namespace std;
 #if(PLATFORM == PLATFORM_U250)
 #define USED_DEFAULT_PARAMETER_ON_STATION   (1)
 
-#define VERSION                         tr("ftrCartCtl Ver:0.0.21.00.U200@20210511\n\n")
+#define VERSION                         tr("ftrCartCtl Ver:0.0.23.00.U200@20210608\n\n")
 /***********************
  * log:
+ * ftrCartCtl Ver:0.0.23.00.U200@20210608
+ * 1.增加uwb可配置
+ * 2.settings.json增加uwb选项
+ * 3.增加使用imu mpu6050
+ * 4.侧边oa可以全局开关
+ * 5.可以设置上报TOF距离
+ * 6.增加imu校正
+ * 7.增加jq操作json
+ * 8.可通过pipe修改，增加json项
+ * 9.启动时自动增加没有却需要的json项
+ *
+ * ftrCartCtl Ver:0.0.22.00.U200@20210524
+ * 1.version 增加编译时间
+ * 2.fix QJM Encoder difference
+ *
  * ftrCartCtl Ver:0.0.21.00.U200@20210511
  * 1.将debug信息输出到rtlog file 下，超过2G后删除
+ * 2.增加fault infomation
+ * 3.没有pipe时可以开streamlit ui
  *
  * ftrCartCtl Ver:0.0.20.00.U200@20210430
  * 1.VTP可以设置OA beep sound可开关
@@ -466,6 +486,11 @@ public:
 
     void    SendCMD(UserCmd cmd,quint8 data1 = 0x00,quint8 data2 = 0x00,quint8 data3 = 0x00);
 
+#if(MANTAIN_JSON_JQ_USED)
+    QString getKeyValueInJsonUsedJQ(QString key);
+    void setValueInJsonUsedJQ(QString key,QString value);
+    void initAddJsonItemUsedJQ(QStringList jsonItem);
+#endif
 
 #if(CREATE_UPDATEALLAPP_SCRIPT_USED)
     void CreateUpdateScript(void);
@@ -580,7 +605,7 @@ public slots:
     void UpdateVTKInfoSlot(VTKInfo_t VTKInfo);
     void UpdateVTPInfoSlot(VTPInfo_t VTPInfo);
     void UpdatePipeInputSlot(QString str);
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     void UpdateIMUInfoSlot(Pose_t pose);
 #endif
     //pause and go button slot
@@ -713,7 +738,10 @@ private:
     bool            NeedInfoFromOutputPipeFlag;
     bool            itNeedSendInfoToPhoneFlag;
     bool            EboxReadyFlag;
-
+#if(TOF_DIST_READING_USED)
+    bool            NeedIntoTOFTestFlag = false;
+    bool            NeedOutTOFTestFlag = false;
+#endif
     bool            LampEnInVTKFlag;
     bool            LampEnInVTPFlag;
 
@@ -778,7 +806,7 @@ private:
     QFileSystemWatcher *fileWatcher;
 
     //bool            TOF_OAFlag,US_OAFlag,UturnDirFlag;
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     imu             *imuData;
     Pose_t          pose;
 #endif
@@ -846,7 +874,11 @@ private:
     UWBInfo_t       UWBRxInfo;
     quint8          invalidTargetCnt;
     quint8          lostTargetCnt;
+    quint8          VTKUWBDataUpdateCnt;
     bool            itNeedComparisonFlag;
+    bool            VTKDetectErrorTargetFlag;
+    bool            VTKUWBDataUpdateTimeoutFlag;
+    bool            UWBBeUsedFlag;
 #endif
 
 #if(GET_SSID_USED)
@@ -867,6 +899,13 @@ private:
 
 #if(RT_LOG_MAINTAIN_USED)
     QString rtlogFileName;
+#endif
+
+#if(MANTAIN_JSON_JQ_USED)
+    QStringList addJsonItem ={"beep_enable_4_ModeChange2SB",\
+                              "beep_enable_4_ModeChange2VTP",\
+                              "beep_enable_4_ModeChange2VTK",\
+                              "uwb_enable"};
 #endif
 };
 

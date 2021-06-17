@@ -32,5 +32,9 @@
 	"tof_oa_rc": true,
 	"us_oa_rc": true,
 	"uturn_oa_dis": true,
+        "beep_enable_4_ModeChange2SB":false,
+        "beep_enable_4_ModeChange2VTP":false,
+        "beep_enable_4_ModeChange2VTK":false,
+        "uwb_enable":false,
 	"uturn_dir_clockwise": false
 }

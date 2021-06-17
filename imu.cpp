@@ -2,6 +2,7 @@
 #include <QtMath>
 #include <QFile>
 
+#define Z_TO_EARTH  (0)
 
 imu::imu(QObject *parent) : QObject(parent)
 {
@@ -105,16 +106,23 @@ void imu::Time2ReadDataSlot()
 
 
             qDebug()<<norm;
-
+        #if(Z_TO_EARTH)
             double roll = (atan2(this->Bias.acc.x,this->Bias.acc.z)*57.3);
             double pitch  = (atan2(this->Bias.acc.y,this->Bias.acc.z)*57.3);
-
+        #else //if(Y_TO_EARTH) up hill pitch is +
+            double pitch = (atan2(this->Bias.acc.z,this->Bias.acc.y)*57.3);
+            double roll  = (atan2(this->Bias.acc.x,this->Bias.acc.y)*57.3);
+        #endif
             //calc real bias
-
+        #if(Z_TO_EARTH)
             this->Bias.acc.x = this->RawData.acc.x - norm*sin(pitch/57.3);
             this->Bias.acc.y = this->RawData.acc.y - norm*sin(roll/57.3);
             this->Bias.acc.z = this->RawData.acc.z - norm*cos(roll/57.3);
-
+        #else
+            this->Bias.acc.x = this->RawData.acc.x - norm*sin(roll/57.3);
+            this->Bias.acc.y = this->RawData.acc.y - norm*cos(roll/57.3);
+            this->Bias.acc.z = this->RawData.acc.z - norm*sin(pitch/57.3);
+        #endif
             this->BoardRoll = roll;
             this->BoardPitch= pitch;
 
@@ -141,19 +149,30 @@ void imu::Time2ReadDataSlot()
         this->RawData.gyro.x -= this->Bias.gyro.x;
         this->RawData.gyro.y -= this->Bias.gyro.y;
         this->RawData.gyro.z -= this->Bias.gyro.z;
-
+    #if(Z_TO_EARTH)
         if(abs(this->RawData.gyro.z) < 0.08) this->RawData.gyro.z = 0;
 
         double dt = this->dt->elapsed()/1000.0f;
         this->pose.yaw += dt*this->RawData.gyro.z/cos(this->BoardPitch/57.3);
         //qDebug()<<this->RawData.gyro.z;
+    #else
+        if(abs(this->RawData.gyro.y) < 0.08) this->RawData.gyro.z = 0;
 
+        double dt = this->dt->elapsed()/1000.0f;
+        this->pose.yaw += dt*this->RawData.gyro.y/cos(this->BoardPitch/57.3);
+        //qDebug()<<this->RawData.gyro.y;
+
+    #endif
         this->dt->restart();
 
         this->pose.norm = sqrt(this->RawData.acc.x*this->RawData.acc.x + this->RawData.acc.y*this->RawData.acc.y + this->RawData.acc.z*this->RawData.acc.z);
-
+    #if(Z_TO_EARTH)
         this->pose.roll = -(qint16)(this->rollKalman->KalmanCalc((atan2(this->RawData.acc.x,this->RawData.acc.z)*57.3) - this->BoardRoll));
         this->pose.pitch= (qint16)(this->pitchKalman->KalmanCalc((atan2(this->RawData.acc.y,this->RawData.acc.z)*57.3) - this->BoardPitch));
+    #else //if(Y_TO_EARTH) up hill pitch is +
+        this->pose.pitch = (qint16)(this->rollKalman->KalmanCalc((atan2(this->RawData.acc.z,this->RawData.acc.y)*57.3) - this->BoardPitch));
+        this->pose.roll= (qint16)(this->pitchKalman->KalmanCalc((atan2(this->RawData.acc.x,this->RawData.acc.y)*57.3) - this->BoardRoll));
+    #endif
         //qDebug()<<this->pose.norm<<this->pose.pitch<<this->pose.roll<<this->pose.yaw;
 
         this->UpdateInfo();

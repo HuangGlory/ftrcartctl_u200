@@ -44,7 +44,7 @@ UWB_AOA::UWB_AOA()
     }
     else
     {
-        printf("Uart Open Error!");
+        printf("UWB Uart Open Error!\n");
     }
 #if(DETECT_TYPE == BT_TYPE)
     connect(this->timer_1s,&QTimer::timeout,this,&UWB_AOA::timer1sSlot);

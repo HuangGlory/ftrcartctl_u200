@@ -18,7 +18,7 @@ void FTR_CTR3SpeedCtl::RC_RealTimeInfo()//CMD = 0x93
     ByteArray[5]=0x00;
     ByteArray[6]=0x00;
 
-    #if(PLATFORM == PLATFORM_R3)
+    #if(IMU_USED)//PLATFORM == PLATFORM_R3)
         ByteArray[7]=(this->pose.pitch >> 8) & 0xFF;
         ByteArray[8]=this->pose.pitch & 0xFF;
 

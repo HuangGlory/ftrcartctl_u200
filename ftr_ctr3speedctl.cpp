@@ -12,16 +12,25 @@ public:
 
 FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new FTR_CTR3SpeedCtlData)
 {
-    qDebug()<<"FtrCartCtl Thread ID:"<<QThread::currentThreadId();
+    qDebug()<<"FtrCartCtl Thread ID:"<<QThread::currentThreadId()<<__DATE__<<__TIME__;
     qRegisterMetaType<MotorCtrlInfo>("MotorCtrlInfo");
     qRegisterMetaType<RxInfo_t>("RxInfo_t");
     qRegisterMetaType<VTKInfo_t>("VTKInfo_t");
     qRegisterMetaType<VTPInfo_t>("VTPInfo_t");
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     qRegisterMetaType<Pose_t>("Pose_t");
 #endif
+
 #if(UWB_USED)
     qRegisterMetaType<UWBInfo_t>("UWBInfo_t");
+    this->uwbApp = new UWB_AOA;
+    this->UWBRxInfo = {0};
+    this->invalidTargetCnt = 0;
+    this->lostTargetCnt = 0;
+    this->itNeedComparisonFlag = false;
+    this->UWBBeUsedFlag = false;
+#else
+    this->UWBBeUsedFlag = false;
 #endif
 
     this->NeedInfoFromOutputPipeFlag = false;
@@ -70,8 +79,36 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     //this->SBProcess = new SB_Thread;
     //this->RCProcess = new RC_Thread;
     //this->VTKProcess= new VTK_Thread;
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
+    {
+        //QProcess用于启动外部程序
+        QProcess process;
+
+        process.start(GET_I2C);
+
+        //等待命令执行结束
+        process.waitForFinished();
+
+        //获取命令执行的结果
+        QByteArray result_ = process.readAllStandardOutput();
+
+        if(result_.toUInt() == 1)
+        {
+             qDebug()<<"I2C State:"<<result_.toUInt()<<"Setting to Enable!";
+            process.start("raspi-config nonint do_i2c 0");//enable i2c
+            process.waitForFinished();
+        }
+        else
+        {
+            qDebug()<<"I2C State:"<<result_.toUInt()<<"is Enable!";
+        }
+    }
+
     this->imuData       = new imu();
+#endif
+
+#if(MANTAIN_JSON_JQ_USED)
+    this->initAddJsonItemUsedJQ(this->addJsonItem);
 #endif
 
 #if(CREATE_UPDATEALLAPP_SCRIPT_USED)
@@ -191,19 +228,12 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
 #if(1)
     //wait pipe ready
     qDebug()<<"Wait Pipe file...";
-    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && QFile(VTP_OUTPUT_DEFAULT_PIPE_NAME).exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()));
+    while(!(this->StateInfoInputPipeFile->exists()) && !(this->MainInputPipeFile->exists() && QFile(VTK_OUTPUT_DEFAULT_PIPE_NAME).exists() && QFile(VTP_OUTPUT_DEFAULT_PIPE_NAME).exists() && this->ftrCartCtlInputPipeFile->exists() && this->ftrCartCtlOutputPipeFile->exists()))
     {
-        QThread::sleep(1);
+        QThread::sleep(2);
+        this->StartStreamlitUISlot();
     }
     qDebug()<<"Pipe file ready";
-#endif
-
-#if(UWB_USED)
-    this->uwbApp = new UWB_AOA;
-    this->UWBRxInfo = {0};
-    this->invalidTargetCnt = 0;
-    this->lostTargetCnt = 0;
-    this->itNeedComparisonFlag = false;
 #endif
 
 #if(GET_SSID_USED)
@@ -369,9 +399,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
             this->LeftWheelDiam = this->SettingParameterFromJson.LeftDiam;
 
             this->SettingParameterFromJson.RightDiam = RIGHT_WHEEL_DIAM;
-            this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
-
-            this->EncoderCnt = ENCODER_CNT;
+            this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;            
 
             QJsonDocument jsonDoc;
             jsonDoc.setObject(jsonObject);
@@ -437,7 +465,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
                         this->RightWheelDiam = this->SettingParameterFromJson.RightDiam;
                          qDebug()<<"RWD Used Default:"<<this->SettingParameterFromJson.RightDiam;
                     }
-
+                #if(0)
                     if(obj.contains("encoder_cnt"))
                     {
                         this->EncoderCnt = obj.value("encoder_cnt").toInt();
@@ -445,9 +473,20 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
                     }
                     //end wheel diam
                 #endif
+                #endif
                 }
             }
         }
+
+        if(!this->CartModel.compare(CART_MODEL_U200_A))
+        {
+            this->EncoderCnt = ENCODER_CNT_WDF;
+        }
+        else
+        {
+            this->EncoderCnt = ENCODER_CNT_QJM;
+        }
+        qDebug()<<"Def-Enc:"<<this->EncoderCnt;
     }
 
 
@@ -484,7 +523,7 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     connect(this->ReadVTPPipeProcess,SIGNAL(UpdateInfoSignal(VTPInfo_t)),this,SLOT(UpdateVTPInfoSlot(VTPInfo_t)));
     connect(this->ReadInputPipeProcess,SIGNAL(UpdateInfoSignal(QString)),this,SLOT(UpdatePipeInputSlot(QString)));
 
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     connect(this->imuData,SIGNAL(UpdateInfoSignal(Pose_t)),this,SLOT(UpdateIMUInfoSlot(Pose_t)));
 #endif
 
@@ -541,6 +580,81 @@ FTR_CTR3SpeedCtl::FTR_CTR3SpeedCtl(QObject *parent) : QObject(parent), data(new 
     this->loadRount(ROUTE_FILE_NAME);
 #endif
 }
+
+#if(MANTAIN_JSON_JQ_USED)
+void FTR_CTR3SpeedCtl::initAddJsonItemUsedJQ(QStringList jsonItem)
+{
+    for(quint8 i = 0;i<jsonItem.size();i++)
+    {
+        this->setValueInJsonUsedJQ(jsonItem.at(i),"false");
+//        qDebug()<<jsonItem.at(i);
+    }
+}
+QString FTR_CTR3SpeedCtl::getKeyValueInJsonUsedJQ(QString key)
+{
+    QString cmd = QString("jq .%1 /home/pi/ftrCartCtl/settings.json").arg(key);
+
+    //QProcess用于启动外部程序
+    QProcess process;
+
+    process.start(cmd);
+
+    //等待命令执行结束
+    process.waitForFinished();
+
+    //获取命令执行的结果
+    QByteArray result_ = process.readAllStandardOutput().replace("\n","");
+
+    qDebug()<<cmd<<result_;
+    return result_;
+}
+
+void FTR_CTR3SpeedCtl::setValueInJsonUsedJQ(QString key,QString value)
+{
+    QString result = this->getKeyValueInJsonUsedJQ(key);
+    if(QString::compare(result,value))
+    {
+        QString cmd = QString("sudo jq .%1=%2 /home/pi/ftrCartCtl/settings.json").arg(key).arg(value);
+
+        QProcess process;
+
+        process.start(cmd);
+
+        //等待命令执行结束
+        process.waitForFinished();
+        //获取命令执行的结果
+        QString result_ = process.readAllStandardOutput().replace("\n","");
+
+        QJsonDocument jsonDocument = QJsonDocument::fromJson(result_.toLocal8Bit().data());
+        if(jsonDocument.isNull())
+        {
+            qDebug()<< "String NULL"<< result_.toLocal8Bit().data();
+        }
+        else
+        {
+            QFile *jsonFileTemp = new QFile("/tmp/settings.json");
+            if(jsonFileTemp->open(QIODevice::WriteOnly))
+            {
+                jsonFileTemp->seek(0);
+                jsonFileTemp->write(jsonDocument.toJson());
+                jsonFileTemp->flush();
+                jsonFileTemp->close();
+
+                cmd = "sudo cp -f /tmp/settings.json /home/pi/ftrCartCtl/settings.json";
+                process.start(cmd);
+                process.waitForFinished(1000);
+                qDebug()<<process.readAllStandardOutput();
+            }
+            delete jsonFileTemp;
+        }
+        qDebug()<<cmd;
+    }
+    else//equ
+    {
+        qDebug()<<"not need to modify in json!";
+    }
+}
+#endif
 
 #if(AUTO_DETECT_FRP)
 void FTR_CTR3SpeedCtl::autoDetectFRP(void)
@@ -628,9 +742,11 @@ void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
 
     this->UWBRxInfo = info;
     this->UWBRxInfo.angle = (int8_t)(0.75*angleTemp + 0.25*info.angle);
-    this->UWBRxInfo.dist  = (uint16_t)(0.80*distTemp + 0.20*info.dist);
+    this->UWBRxInfo.dist  = (uint16_t)(0.70*distTemp + 0.30*info.dist);
 
-    this->UWBRxInfo.dist += 0;
+//    this->UWBRxInfo.dist += 0;
+    this->VTKUWBDataUpdateCnt = 0;
+    this->VTKUWBDataUpdateTimeoutFlag = false;
 #if(0)//dist Comparison
     if(((abs(this->VTKInfo.VTKDist - this->UWBRxInfo.dist) > 1000)) &&\
        (this->VTKInfo.VTKDist != 0) && (VTK_LOST_LEADER != this->VTKInfo.VTKDist) &&\
@@ -641,6 +757,8 @@ void FTR_CTR3SpeedCtl::UWBInfoSlot(UWBInfo_t info)
         {
             this->invalidTargetCnt = 2;
             this->CartWantToPNGState = true;//want to pause state
+
+            this->VTKDetectErrorTargetFlag = true;
             qDebug()<<"invalid target to Pause";
         }
         //qDebug()<<"invalid target:"<<this->UWBRxInfo.dist<<VTKInfo.VTKDist<<this->UWBRxInfo.angle<<VTKInfo.VTKAngle;
@@ -692,7 +810,7 @@ void FTR_CTR3SpeedCtl::CreateStreamlitAppSlot(void)
 void FTR_CTR3SpeedCtl::StartStreamlitUISlot(void)
 {
 //    if(!this->streamlitProcess->isOpen() || (0 ==this->streamlitAppPID))
-    if(!this->currentIPAddr.isEmpty())//not wifi be connected
+    if(1)//!this->currentIPAddr.isEmpty())//not wifi be connected
     {
         if(0 ==this->streamlitAppPID)
         {
@@ -998,6 +1116,7 @@ bool FTR_CTR3SpeedCtl::SettingOAGlobalBaseJsonSlot(void)
             //VTK parameter setting
                 if(obj.contains("tof_oa_vtk")) obj.insert("tof_oa_vtk",this->GlobaOAStateFlag);
                 if(obj.contains("us_oa_vtk")) obj.insert("us_oa_vtk",this->GlobaOAStateFlag);
+                if(obj.contains("oa_avoiding_vtk")) obj.insert("oa_avoiding_vtk",this->GlobaOAStateFlag);
             //end VTK parameter setting
 
             //march parameter setting
@@ -1251,11 +1370,17 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                         disconnect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
                     #endif
                     this->itNeedComparisonFlag = true;
+
+                    this->VTKUWBDataUpdateCnt = 0;
+                    this->VTKUWBDataUpdateTimeoutFlag = true;
+                    this->VTKDetectErrorTargetFlag = false;
+                #else
+                    this->UWBBeUsedFlag = false;
                 #endif
                     this->VTKInfo.ToPushFlag = false;
                     this->VTPInfo.ToPushFlag = false;
                 }
-            #if(PLATFORM == PLATFORM_R3)
+            #if(IMU_USED)//PLATFORM == PLATFORM_R3)
                 else
                 {
                     this->SB_RealTimeInfo();
@@ -1396,7 +1521,13 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     this->UWBRxInfo = {0};
                     this->VTKInfo.VTKDist = this->UWBRxInfo.dist;
                     this->itNeedComparisonFlag = true;
-                    connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                    this->VTKUWBDataUpdateCnt = 0;
+                    this->VTKUWBDataUpdateTimeoutFlag = true;
+                    this->VTKDetectErrorTargetFlag = false;
+
+                    if(this->UWBBeUsedFlag) connect(this->uwbApp,&UWB_AOA::UpdateInfoSignal,this,&FTR_CTR3SpeedCtl::UWBInfoSlot);
+                #else
+                    this->UWBBeUsedFlag = false;
                 #endif
 
                     if(this->ReadVTKPipeProcess->pipeFileName.isEmpty())  this->ReadVTKPipeProcess->SetPipeFileName(VTK_OUTPUT_DEFAULT_PIPE_NAME);
@@ -1411,6 +1542,15 @@ void FTR_CTR3SpeedCtl::Time2LoopSlot(void)//per 97ms
                     this->CartStateCtlProcess->SetCartStateExternal(STATE_SB);
                     printf("LowPowerToSB:\n");
                 }
+            #if(UWB_USED)
+                if((this->UWBBeUsedFlag) && (++this->VTKUWBDataUpdateCnt >= 20))//about 1s
+                {
+                    this->CartWantToPNGState = true;//want to pause state
+                    this->VTKUWBDataUpdateCnt = 20;
+                    this->VTKUWBDataUpdateTimeoutFlag = true;
+                    qDebug()<<"UWBTO:";
+                }
+            #endif
             }
             break;
         case STATE_VTP://6
@@ -1665,6 +1805,16 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
             this->SendCMD(CMD_DIAM_CALIBRATION,0x00);
         }
 
+        if(this->NeedIntoTOFTestFlag)
+        {
+            this->SendCMD(CMD_REPORT_OA_INFO,0x01);
+        }
+        else if(this->NeedOutTOFTestFlag)
+        {
+            this->SendCMD(CMD_REPORT_OA_INFO,0x00);
+            this->NeedOutTOFTestFlag = false;
+        }
+
         if((tickCntPerSecond % 2) == 0)
         {
             if(this->Wait4CameraReadyIndecateFlag) this->SendCMD(CMD_BEEP_SOUND,BEEP_TYPE_SHORT_BEEP_1);
@@ -1749,28 +1899,40 @@ void FTR_CTR3SpeedCtl::Timer2SendDataSlot(void)
         }
     #endif
     #if(UWB_USED)
-        static quint32 recordTime2ComparisonCtl;
-        if(this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag) this->itNeedComparisonFlag = true;
+        if(this->UWBBeUsedFlag)
+        {
+            static quint32 recordTime2ComparisonCtl;
+            if(this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag) this->itNeedComparisonFlag = true;
 
-        if((this->VTKInfo.numOfPeople == 1) &&  (this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag))
-        {
-            recordTime2ComparisonCtl = tickCntPerSecond;
-        }
-        else if(this->itNeedComparisonFlag)
-        {
-        #if(!COMPARSION_REALTIME)
-            if((tickCntPerSecond - recordTime2ComparisonCtl) >= 10)
+            if((this->VTKInfo.numOfPeople == 1) &&  (this->VTKIdleIntoPauseFlag || this->VTKInIdleFlag))
             {
-                this->itNeedComparisonFlag = false;
                 recordTime2ComparisonCtl = tickCntPerSecond;
-                qDebug()<<"Cancle Comparsion!";
             }
-        #endif
+            else if(this->itNeedComparisonFlag)
+            {
+            #if(!COMPARSION_REALTIME)
+                if((tickCntPerSecond - recordTime2ComparisonCtl) >= 20)
+                {
+                    this->itNeedComparisonFlag = false;
+                    recordTime2ComparisonCtl = tickCntPerSecond;
+                    qDebug()<<"Cancle Comparsion!";
+                }
+            #endif
+            }
+            //qDebug()<<"ComparsionS："<<this->itNeedComparisonFlag;
+
+            if(this->VTKDetectErrorTargetFlag)
+            {
+                if(abs(this->VTKInfo.VTKDist - this->UWBRxInfo.dist) < 700)
+                {
+                    this->CartWantToPNGState = false;//want to go state
+                    this->VTKDetectErrorTargetFlag = false;
+                }
+            }
         }
-        //qDebug()<<"ComparsionS："<<this->itNeedComparisonFlag;
     #endif
     #if(RT_LOG_MAINTAIN_USED)
-        if((tickCntPerSecond % 60) == 0)
+        if((tickCntPerSecond % 300) == 0)
         {
             this->CheckRTLogSize();
         }
@@ -1961,6 +2123,8 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                     this->NeedOutODOCaliFlag    = false;
                     this->InODOCaliFlag         = false;
                 }
+
+                if(this->RxInfo.MultiFunction & AccGyroCaliBit) this->imuData->CalcBias();
             #else //R3
                 if(this->VTKInIdleFlag != (bool)(this->RxInfo.MultiFunction & TKInIdleStateBit))
                 {
@@ -2004,10 +2168,10 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
 
                 convertValue        = RxInfoList.at(RX_INFO_ORDER_YAW).toInt(&convertResult);
                 if(convertResult)    this->RxInfo.yaw = convertValue;
-
-                //convertValue        = RxInfoList.at(RX_INFO_FAULT).toInt(&convertResult);
-                //if(convertResult)    this->RxInfo.fault = (uint32_t)(convertValue);
-
+            #if(REPORT_FAULT_USED)
+                convertValue        = RxInfoList.at(RX_INFO_ORDER_FAULT).toInt(&convertResult);
+                if(convertResult)    this->RxInfo.fault = (uint32_t)(convertValue);
+            #endif
                 this->timeElapsedGotODOToMark->start();
                 if(this->HSWant2State != this->RxInfo.HSWantToCartState)
                 {
@@ -2036,11 +2200,17 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                 QString CurrentTimeStr = QString((QDateTime::currentDateTime().toString(QString("yyyyMMdd-HH-mm-ss"))));
                 if(STATE_VTK == this->CartState)
                 {
+                #if(0)
                     saveLogStr = CurrentTimeStr.append(QString(":RS:(%1,%2);TS:(%3,%4);Vel:(%5,%6);RVTK:(%7,%8);TVTK:(%9,%10);OA(%11,%12,%13)\n")
                             .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
                             .arg(this->RxInfo.RightTargetSpeed).arg(this->RxInfo.MotorVelocity.linearV).arg(this->RxInfo.MotorVelocity.angularV)
                             .arg(this->RxInfo.VTKDist).arg(this->RxInfo.VTKAngle).arg(this->VTKInfo.VTKDist).arg(this->VTKInfo.VTKAngle)
                             .arg(this->RxInfo.TOFMinDist).arg(this->RxInfo.USMinDist).arg(this->RxInfo.MultiFunction & (ObstBeDetectedBy2DBit | ObstBeDetectedByUSBit)));
+                #else
+                    saveLogStr = (QString("%1,%2,%3,%4,%5,%6\n")
+                            .arg(this->RxInfo.LeftRealSpeed).arg(this->RxInfo.RightRealSpeed).arg(this->RxInfo.LeftTargetSpeed)
+                            .arg(this->RxInfo.RightTargetSpeed).arg(this->RxInfo.MotorVelocity.linearV).arg(this->RxInfo.MotorVelocity.angularV));
+                #endif
                 }
                 else if(STATE_VTP == this->CartState)
                 {
@@ -2105,6 +2275,13 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
             }
 
         }
+    #if(TOF_DIST_READING_USED)
+        else if(RxInfo.contains("TOF:"))
+        {
+            this->NeedIntoTOFTestFlag = false;
+            this->WriteOutPipeSlot(RxInfo);
+        }
+    #endif
         else if(RxInfo.contains("ODO:") && (this->InODOCaliFlag))//ODO calibration
         {
             RxInfo = RxInfo.replace("ODO:","");
@@ -2162,7 +2339,7 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                         //qDebug("wiPI Ver:%d.%d",major,minor);
                     #endif
 
-                        QString verStr = QString("wiPi Ver:%1.%2\n").arg(major).arg(minor);
+                        QString verStr = QString("Building: %1 %2\nwiPi Ver:%3.%4\n").arg(__DATE__).arg(__TIME__).arg(major).arg(minor);
                         verStr.append(this->visionVersionStr);
                         verStr.append(VERSION);
                         verStr.append(this->EboxVersionStr);
@@ -2175,8 +2352,6 @@ void FTR_CTR3SpeedCtl::ReadUARTSlot(void)
                         this->EboxVersionStr.clear();
                     }
                 }
-
-
                 this->GetVersionOfEBoxFlag = false;
             }
         }
@@ -2343,6 +2518,12 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 //把json文档转换为json对象
                 QJsonObject obj=doc.object();
                 this->SettingJsonErrorFlag = false;
+
+                if(obj.contains("uwb_enable"))
+                {
+                    this->UWBBeUsedFlag = obj.value("uwb_enable").toBool();
+                    qDebug()<<"uwb_enable:"<<this->UWBBeUsedFlag;
+                }
 
                 if(obj.contains("Recover_OA_Timeout"))
                 {
@@ -2556,7 +2737,7 @@ bool FTR_CTR3SpeedCtl::GetSettingParameterFromJson(QString jsonFileName)
                 //this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.UturnDir
                 this->GlobaOAStateFlag = (this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.RCCtlByte.CtlByteFlag.USOAOn_Off ||\
                                           this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTPCtlByte.CtlByteFlag.USOAOn_Off ||\
-                                          this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off ||\
+                                          this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.USOAOn_Off || this->SettingParameterFromJson.VTKCtlByte.CtlByteFlag.OAAvoidOn_Off ||\
                                           this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.TOFOAOn_Off || this->SettingParameterFromJson.MarchCtlByte.CtlByteFlag.USOAOn_Off);
             }
             else

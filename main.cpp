@@ -74,6 +74,11 @@ QByteArray -> std::string  QByteArray.toStdString();
 std::string -> char *        string.date();
 
 //QTextStream 会引起mem leak
+
+jq 使用   jq '.pair_mac="ff:65:90:f1:d9:b8"' settings.json >/tmp/settings.json & sudo cp -f /tmp/settings.json /home/pi/ftrCartCtl/settins.json
+         jq 'del(.into_go_zone_dist1)' settings.json >/tmp/settings.json & sudo cp -f /tmp/settings.json /home/pi/ftrCartCtl/settins.json
+         jq '.F1="New F1" | .F2="New F2"' t.json
+         jq '.pair_mac' settins.json
 */
 
 int main(int argc, char *argv[])

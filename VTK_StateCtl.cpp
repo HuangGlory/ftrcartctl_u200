@@ -43,7 +43,7 @@ void FTR_CTR3SpeedCtl::VTK_RealTimeInfo()//CMD = 0xEC
 //    }
 
 //    qDebug("ctlByte:%x,%d",ByteArray.at(7),this->VTKInfo.ToPushFlag);
-#if(PLATFORM == PLATFORM_R3)
+#if(IMU_USED)//PLATFORM == PLATFORM_R3)
     ByteArray[8]=(this->pose.pitch >> 8) & 0xFF;
     ByteArray[9]=this->pose.pitch & 0xFF;
 
